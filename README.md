@@ -1,4 +1,4 @@
-# SupportDesk: Real-Time Support Platform with RAG AI Assistance
+# CogniDesk: Real-Time Support Platform with RAG AI Assistance
 
 An Intercom-style customer support desk. Customers chat through a shareable link, agents handle chats in a live inbox, and an AI assistant drafts replies grounded in the company's knowledge base.
 
@@ -54,8 +54,8 @@ An Intercom-style customer support desk. Customers chat through a shareable link
 ## Setup
 
 ```bash
-git clone https://github.com/1shikharvarshney1/SupportDesk.git
-cd SupportDesk
+git clone https://github.com/1shikharvarshney1/CogniDesk.git
+cd CogniDesk
 
 npm run install:all
 

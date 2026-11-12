@@ -1,5 +1,5 @@
 {
-  "name": "supportdesk-root",
+  "name": "cognidesk",
   "version": "1.0.0",
   "private": true,
   "type": "module",
@@ -9,6 +9,7 @@
   },
   "devDependencies": {
     "@playwright/test": "^1.63.0",
-    "concurrently": "^8.2.2"
+    "concurrently": "^8.2.2",
+    "socket.io-client": "^4.8.1"
   }
 }

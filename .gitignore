@@ -15,3 +15,4 @@ playwright-report/
 e2e/
 server/tests/
 playwright.config.js
+benchmarks/
