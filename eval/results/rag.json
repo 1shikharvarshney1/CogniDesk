@@ -1,0 +1,901 @@
+{
+  "testDate": "2026-11-13T19:13:36.514Z",
+  "corpus": {
+    "type": "synthetic",
+    "articleCount": 15,
+    "questionCount": 30,
+    "runsPerQuestion": 5,
+    "totalRetrievalEvaluations": 150
+  },
+  "retrievalMetrics": {
+    "overallTop1HitRate": 86.7,
+    "overallTop3HitRate": 96.7,
+    "latencyMs": {
+      "median": 4.3,
+      "p95": 14.53,
+      "p99": 25.21
+    },
+    "difficultyBreakdown": {
+      "direct": {
+        "count": 10,
+        "top1Hits": 50,
+        "top3Hits": 50,
+        "totalEvals": 50,
+        "top1Percentage": "100.0",
+        "top3Percentage": "100.0"
+      },
+      "paraphrased": {
+        "count": 8,
+        "top1Hits": 35,
+        "top3Hits": 40,
+        "totalEvals": 40,
+        "top1Percentage": "87.5",
+        "top3Percentage": "100.0"
+      },
+      "synonym": {
+        "count": 7,
+        "top1Hits": 30,
+        "top3Hits": 35,
+        "totalEvals": 35,
+        "top1Percentage": "85.7",
+        "top3Percentage": "100.0"
+      },
+      "hard": {
+        "count": 5,
+        "top1Hits": 15,
+        "top3Hits": 20,
+        "totalEvals": 25,
+        "top1Percentage": "60.0",
+        "top3Percentage": "80.0"
+      }
+    }
+  },
+  "geminiMetrics": {
+    "model": "gemini-3.5-flash",
+    "measuredRuns": 5,
+    "geminiLatencyMs": {
+      "median": 4171.84,
+      "p95": 4588.62,
+      "samples": [
+        4171.84,
+        3311.22,
+        4633.03,
+        4411.02,
+        4029.83
+      ]
+    },
+    "totalLatencyMs": {
+      "median": 4181.44,
+      "p95": 4595.78,
+      "samples": [
+        4181.44,
+        3316.72,
+        4636.61,
+        4432.49,
+        4034.72
+      ]
+    },
+    "sampleSuggestion": {
+      "reply": "We offer a 14-day money-back guarantee for all new annual subscriptions from the initial purchase date. To request your refund, please email billing support with your transaction reference. Approved refunds are processed back to your original payment method within 5 to 10 business days.",
+      "sentiment": "calm",
+      "urgency": "low",
+      "sources": [
+        "Refund Policy and Cancellation Windows"
+      ],
+      "provider": "gemini"
+    }
+  },
+  "failureCases": [
+    {
+      "id": "q30",
+      "query": "We are seeing 429 status codes on our automated reporting integration during nightly syncs.",
+      "difficulty": "hard",
+      "expectedArticle": "API Rate Limits, Quotas and Webhook Retries",
+      "top1HitRate": "0%",
+      "top3HitRate": "0%",
+      "retrievedArticles": [
+        "[Rank 1] Password Reset and Account Recovery (match=false)",
+        "[Rank 2] Two-Factor Authentication Setup and Recovery (match=false)",
+        "[Rank 3] Workspace Ownership Transfer and Reassignment (match=false)"
+      ],
+      "likelyCause": "Deliberate vocabulary mismatch; MongoDB text search relies on Porter stemming and lexical exact matching without dense semantic vector embeddings."
+    }
+  ],
+  "rawQuestionResults": [
+    {
+      "id": "q01",
+      "query": "How do I reset my lost password if I cannot log in?",
+      "difficulty": "direct",
+      "expectedArticleId": "kb_art_01",
+      "expectedTitle": "Password Reset and Account Recovery",
+      "top1Hits": 5,
+      "top3Hits": 5,
+      "totalRuns": 5,
+      "lastRetrieved": [
+        {
+          "rank": 1,
+          "title": "Password Reset and Account Recovery",
+          "isMatch": true
+        },
+        {
+          "rank": 2,
+          "title": "Audit Logs, Activity Tracking and Security Events",
+          "isMatch": false
+        },
+        {
+          "rank": 3,
+          "title": "Workspace Ownership Transfer and Reassignment",
+          "isMatch": false
+        }
+      ]
+    },
+    {
+      "id": "q02",
+      "query": "What happens if an account gets locked out after multiple failed attempts?",
+      "difficulty": "paraphrased",
+      "expectedArticleId": "kb_art_01",
+      "expectedTitle": "Password Reset and Account Recovery",
+      "top1Hits": 5,
+      "top3Hits": 5,
+      "totalRuns": 5,
+      "lastRetrieved": [
+        {
+          "rank": 1,
+          "title": "Password Reset and Account Recovery",
+          "isMatch": true
+        },
+        {
+          "rank": 2,
+          "title": "API Rate Limits, Quotas and Webhook Retries",
+          "isMatch": false
+        },
+        {
+          "rank": 3,
+          "title": "IP Whitelisting and Network Access Restrictions",
+          "isMatch": false
+        }
+      ]
+    },
+    {
+      "id": "q03",
+      "query": "Where can I view and download past billing statements and VAT invoices?",
+      "difficulty": "direct",
+      "expectedArticleId": "kb_art_02",
+      "expectedTitle": "Billing Cycles, Invoicing and Tax Details",
+      "top1Hits": 5,
+      "top3Hits": 5,
+      "totalRuns": 5,
+      "lastRetrieved": [
+        {
+          "rank": 1,
+          "title": "Billing Cycles, Invoicing and Tax Details",
+          "isMatch": true
+        },
+        {
+          "rank": 2,
+          "title": "User Roles, Permissions and Team Invitations",
+          "isMatch": false
+        },
+        {
+          "rank": 3,
+          "title": "Single Sign-On Configuration with SAML and Okta",
+          "isMatch": false
+        }
+      ]
+    },
+    {
+      "id": "q04",
+      "query": "How are subscription upgrades calculated during the middle of the month?",
+      "difficulty": "synonym",
+      "expectedArticleId": "kb_art_02",
+      "expectedTitle": "Billing Cycles, Invoicing and Tax Details",
+      "top1Hits": 5,
+      "top3Hits": 5,
+      "totalRuns": 5,
+      "lastRetrieved": [
+        {
+          "rank": 1,
+          "title": "Billing Cycles, Invoicing and Tax Details",
+          "isMatch": true
+        },
+        {
+          "rank": 2,
+          "title": "Refund Policy and Cancellation Windows",
+          "isMatch": false
+        }
+      ]
+    },
+    {
+      "id": "q05",
+      "query": "What is your refund policy if I want to cancel my annual subscription within 14 days?",
+      "difficulty": "direct",
+      "expectedArticleId": "kb_art_03",
+      "expectedTitle": "Refund Policy and Cancellation Windows",
+      "top1Hits": 5,
+      "top3Hits": 5,
+      "totalRuns": 5,
+      "lastRetrieved": [
+        {
+          "rank": 1,
+          "title": "Refund Policy and Cancellation Windows",
+          "isMatch": true
+        },
+        {
+          "rank": 2,
+          "title": "Billing Cycles, Invoicing and Tax Details",
+          "isMatch": false
+        },
+        {
+          "rank": 3,
+          "title": "Data Export, Retention Schedules and GDPR Compliance",
+          "isMatch": false
+        }
+      ]
+    },
+    {
+      "id": "q06",
+      "query": "Can I get a reimbursement for a monthly subscription charged yesterday without any activity?",
+      "difficulty": "synonym",
+      "expectedArticleId": "kb_art_03",
+      "expectedTitle": "Refund Policy and Cancellation Windows",
+      "top1Hits": 0,
+      "top3Hits": 5,
+      "totalRuns": 5,
+      "lastRetrieved": [
+        {
+          "rank": 1,
+          "title": "Billing Cycles, Invoicing and Tax Details",
+          "isMatch": false
+        },
+        {
+          "rank": 2,
+          "title": "Refund Policy and Cancellation Windows",
+          "isMatch": true
+        },
+        {
+          "rank": 3,
+          "title": "Audit Logs, Activity Tracking and Security Events",
+          "isMatch": false
+        }
+      ]
+    },
+    {
+      "id": "q07",
+      "query": "How do I set up two-factor authentication with Google Authenticator?",
+      "difficulty": "direct",
+      "expectedArticleId": "kb_art_04",
+      "expectedTitle": "Two-Factor Authentication Setup and Recovery",
+      "top1Hits": 5,
+      "top3Hits": 5,
+      "totalRuns": 5,
+      "lastRetrieved": [
+        {
+          "rank": 1,
+          "title": "Two-Factor Authentication Setup and Recovery",
+          "isMatch": true
+        },
+        {
+          "rank": 2,
+          "title": "Single Sign-On Configuration with SAML and Okta",
+          "isMatch": false
+        },
+        {
+          "rank": 3,
+          "title": "IP Whitelisting and Network Access Restrictions",
+          "isMatch": false
+        }
+      ]
+    },
+    {
+      "id": "q08",
+      "query": "What should I do if I lost my phone and cannot enter my MFA verification code?",
+      "difficulty": "synonym",
+      "expectedArticleId": "kb_art_04",
+      "expectedTitle": "Two-Factor Authentication Setup and Recovery",
+      "top1Hits": 5,
+      "top3Hits": 5,
+      "totalRuns": 5,
+      "lastRetrieved": [
+        {
+          "rank": 1,
+          "title": "Two-Factor Authentication Setup and Recovery",
+          "isMatch": true
+        }
+      ]
+    },
+    {
+      "id": "q09",
+      "query": "How do I add a new support agent to our workspace?",
+      "difficulty": "paraphrased",
+      "expectedArticleId": "kb_art_05",
+      "expectedTitle": "User Roles, Permissions and Team Invitations",
+      "top1Hits": 0,
+      "top3Hits": 5,
+      "totalRuns": 5,
+      "lastRetrieved": [
+        {
+          "rank": 1,
+          "title": "File Attachment Limits, Quotas and Supported Formats",
+          "isMatch": false
+        },
+        {
+          "rank": 2,
+          "title": "User Roles, Permissions and Team Invitations",
+          "isMatch": true
+        },
+        {
+          "rank": 3,
+          "title": "Workspace Ownership Transfer and Reassignment",
+          "isMatch": false
+        }
+      ]
+    },
+    {
+      "id": "q10",
+      "query": "What permissions does an Admin have compared to an Owner or Agent?",
+      "difficulty": "direct",
+      "expectedArticleId": "kb_art_05",
+      "expectedTitle": "User Roles, Permissions and Team Invitations",
+      "top1Hits": 5,
+      "top3Hits": 5,
+      "totalRuns": 5,
+      "lastRetrieved": [
+        {
+          "rank": 1,
+          "title": "User Roles, Permissions and Team Invitations",
+          "isMatch": true
+        },
+        {
+          "rank": 2,
+          "title": "Workspace Ownership Transfer and Reassignment",
+          "isMatch": false
+        },
+        {
+          "rank": 3,
+          "title": "Audit Logs, Activity Tracking and Security Events",
+          "isMatch": false
+        }
+      ]
+    },
+    {
+      "id": "q11",
+      "query": "How do I configure SAML SSO with Okta or Azure AD?",
+      "difficulty": "direct",
+      "expectedArticleId": "kb_art_06",
+      "expectedTitle": "Single Sign-On Configuration with SAML and Okta",
+      "top1Hits": 5,
+      "top3Hits": 5,
+      "totalRuns": 5,
+      "lastRetrieved": [
+        {
+          "rank": 1,
+          "title": "Single Sign-On Configuration with SAML and Okta",
+          "isMatch": true
+        },
+        {
+          "rank": 2,
+          "title": "Email Notification Preferences and Digest Frequency",
+          "isMatch": false
+        },
+        {
+          "rank": 3,
+          "title": "IP Whitelisting and Network Access Restrictions",
+          "isMatch": false
+        }
+      ]
+    },
+    {
+      "id": "q12",
+      "query": "Can we mandate that all employees log in through corporate single sign-on?",
+      "difficulty": "paraphrased",
+      "expectedArticleId": "kb_art_06",
+      "expectedTitle": "Single Sign-On Configuration with SAML and Okta",
+      "top1Hits": 5,
+      "top3Hits": 5,
+      "totalRuns": 5,
+      "lastRetrieved": [
+        {
+          "rank": 1,
+          "title": "Single Sign-On Configuration with SAML and Okta",
+          "isMatch": true
+        },
+        {
+          "rank": 2,
+          "title": "Audit Logs, Activity Tracking and Security Events",
+          "isMatch": false
+        },
+        {
+          "rank": 3,
+          "title": "Data Export, Retention Schedules and GDPR Compliance",
+          "isMatch": false
+        }
+      ]
+    },
+    {
+      "id": "q13",
+      "query": "What are the API rate limits and how many calls can we make per minute?",
+      "difficulty": "direct",
+      "expectedArticleId": "kb_art_07",
+      "expectedTitle": "API Rate Limits, Quotas and Webhook Retries",
+      "top1Hits": 5,
+      "top3Hits": 5,
+      "totalRuns": 5,
+      "lastRetrieved": [
+        {
+          "rank": 1,
+          "title": "API Rate Limits, Quotas and Webhook Retries",
+          "isMatch": true
+        },
+        {
+          "rank": 2,
+          "title": "File Attachment Limits, Quotas and Supported Formats",
+          "isMatch": false
+        },
+        {
+          "rank": 3,
+          "title": "Password Reset and Account Recovery",
+          "isMatch": false
+        }
+      ]
+    },
+    {
+      "id": "q14",
+      "query": "How often will your server retry failed webhook deliveries?",
+      "difficulty": "paraphrased",
+      "expectedArticleId": "kb_art_07",
+      "expectedTitle": "API Rate Limits, Quotas and Webhook Retries",
+      "top1Hits": 5,
+      "top3Hits": 5,
+      "totalRuns": 5,
+      "lastRetrieved": [
+        {
+          "rank": 1,
+          "title": "API Rate Limits, Quotas and Webhook Retries",
+          "isMatch": true
+        },
+        {
+          "rank": 2,
+          "title": "Password Reset and Account Recovery",
+          "isMatch": false
+        },
+        {
+          "rank": 3,
+          "title": "Email Notification Preferences and Digest Frequency",
+          "isMatch": false
+        }
+      ]
+    },
+    {
+      "id": "q15",
+      "query": "How can I export all our workspace conversation data for compliance?",
+      "difficulty": "direct",
+      "expectedArticleId": "kb_art_08",
+      "expectedTitle": "Data Export, Retention Schedules and GDPR Compliance",
+      "top1Hits": 5,
+      "top3Hits": 5,
+      "totalRuns": 5,
+      "lastRetrieved": [
+        {
+          "rank": 1,
+          "title": "Data Export, Retention Schedules and GDPR Compliance",
+          "isMatch": true
+        },
+        {
+          "rank": 2,
+          "title": "Workspace Ownership Transfer and Reassignment",
+          "isMatch": false
+        },
+        {
+          "rank": 3,
+          "title": "User Roles, Permissions and Team Invitations",
+          "isMatch": false
+        }
+      ]
+    },
+    {
+      "id": "q16",
+      "query": "How long are customer chats stored and how do you handle GDPR deletion requests?",
+      "difficulty": "paraphrased",
+      "expectedArticleId": "kb_art_08",
+      "expectedTitle": "Data Export, Retention Schedules and GDPR Compliance",
+      "top1Hits": 5,
+      "top3Hits": 5,
+      "totalRuns": 5,
+      "lastRetrieved": [
+        {
+          "rank": 1,
+          "title": "Data Export, Retention Schedules and GDPR Compliance",
+          "isMatch": true
+        },
+        {
+          "rank": 2,
+          "title": "Custom Domains and SSL Certificate Provisioning",
+          "isMatch": false
+        },
+        {
+          "rank": 3,
+          "title": "Email Notification Preferences and Digest Frequency",
+          "isMatch": false
+        }
+      ]
+    },
+    {
+      "id": "q17",
+      "query": "How do I connect our custom domain like support.example.com to CogniDesk?",
+      "difficulty": "direct",
+      "expectedArticleId": "kb_art_09",
+      "expectedTitle": "Custom Domains and SSL Certificate Provisioning",
+      "top1Hits": 5,
+      "top3Hits": 5,
+      "totalRuns": 5,
+      "lastRetrieved": [
+        {
+          "rank": 1,
+          "title": "Custom Domains and SSL Certificate Provisioning",
+          "isMatch": true
+        },
+        {
+          "rank": 2,
+          "title": "File Attachment Limits, Quotas and Supported Formats",
+          "isMatch": false
+        },
+        {
+          "rank": 3,
+          "title": "Plan Downgrades, Feature Retention and Grace Periods",
+          "isMatch": false
+        }
+      ]
+    },
+    {
+      "id": "q18",
+      "query": "Does CogniDesk provide automated SSL HTTPS certificates for custom web domains?",
+      "difficulty": "synonym",
+      "expectedArticleId": "kb_art_09",
+      "expectedTitle": "Custom Domains and SSL Certificate Provisioning",
+      "top1Hits": 5,
+      "top3Hits": 5,
+      "totalRuns": 5,
+      "lastRetrieved": [
+        {
+          "rank": 1,
+          "title": "Custom Domains and SSL Certificate Provisioning",
+          "isMatch": true
+        },
+        {
+          "rank": 2,
+          "title": "Single Sign-On Configuration with SAML and Okta",
+          "isMatch": false
+        },
+        {
+          "rank": 3,
+          "title": "Plan Downgrades, Feature Retention and Grace Periods",
+          "isMatch": false
+        }
+      ]
+    },
+    {
+      "id": "q19",
+      "query": "What happens to our chat history and AI features if we downgrade to the free tier?",
+      "difficulty": "paraphrased",
+      "expectedArticleId": "kb_art_10",
+      "expectedTitle": "Plan Downgrades, Feature Retention and Grace Periods",
+      "top1Hits": 5,
+      "top3Hits": 5,
+      "totalRuns": 5,
+      "lastRetrieved": [
+        {
+          "rank": 1,
+          "title": "Plan Downgrades, Feature Retention and Grace Periods",
+          "isMatch": true
+        },
+        {
+          "rank": 2,
+          "title": "Workspace Ownership Transfer and Reassignment",
+          "isMatch": false
+        },
+        {
+          "rank": 3,
+          "title": "Email Notification Preferences and Digest Frequency",
+          "isMatch": false
+        }
+      ]
+    },
+    {
+      "id": "q20",
+      "query": "Is there a grace period if our team has more members than the free tier allows?",
+      "difficulty": "synonym",
+      "expectedArticleId": "kb_art_10",
+      "expectedTitle": "Plan Downgrades, Feature Retention and Grace Periods",
+      "top1Hits": 5,
+      "top3Hits": 5,
+      "totalRuns": 5,
+      "lastRetrieved": [
+        {
+          "rank": 1,
+          "title": "Plan Downgrades, Feature Retention and Grace Periods",
+          "isMatch": true
+        },
+        {
+          "rank": 2,
+          "title": "User Roles, Permissions and Team Invitations",
+          "isMatch": false
+        },
+        {
+          "rank": 3,
+          "title": "IP Whitelisting and Network Access Restrictions",
+          "isMatch": false
+        }
+      ]
+    },
+    {
+      "id": "q21",
+      "query": "How do I switch from instant chat emails to a daily summary email?",
+      "difficulty": "synonym",
+      "expectedArticleId": "kb_art_11",
+      "expectedTitle": "Email Notification Preferences and Digest Frequency",
+      "top1Hits": 5,
+      "top3Hits": 5,
+      "totalRuns": 5,
+      "lastRetrieved": [
+        {
+          "rank": 1,
+          "title": "Email Notification Preferences and Digest Frequency",
+          "isMatch": true
+        },
+        {
+          "rank": 2,
+          "title": "Password Reset and Account Recovery",
+          "isMatch": false
+        },
+        {
+          "rank": 3,
+          "title": "User Roles, Permissions and Team Invitations",
+          "isMatch": false
+        }
+      ]
+    },
+    {
+      "id": "q22",
+      "query": "Can I receive desktop browser push alerts when a customer sends a message?",
+      "difficulty": "paraphrased",
+      "expectedArticleId": "kb_art_11",
+      "expectedTitle": "Email Notification Preferences and Digest Frequency",
+      "top1Hits": 5,
+      "top3Hits": 5,
+      "totalRuns": 5,
+      "lastRetrieved": [
+        {
+          "rank": 1,
+          "title": "Email Notification Preferences and Digest Frequency",
+          "isMatch": true
+        },
+        {
+          "rank": 2,
+          "title": "Custom Domains and SSL Certificate Provisioning",
+          "isMatch": false
+        },
+        {
+          "rank": 3,
+          "title": "Data Export, Retention Schedules and GDPR Compliance",
+          "isMatch": false
+        }
+      ]
+    },
+    {
+      "id": "q23",
+      "query": "How can I hand over primary ownership of our company workspace to another administrator?",
+      "difficulty": "synonym",
+      "expectedArticleId": "kb_art_12",
+      "expectedTitle": "Workspace Ownership Transfer and Reassignment",
+      "top1Hits": 5,
+      "top3Hits": 5,
+      "totalRuns": 5,
+      "lastRetrieved": [
+        {
+          "rank": 1,
+          "title": "Workspace Ownership Transfer and Reassignment",
+          "isMatch": true
+        },
+        {
+          "rank": 2,
+          "title": "Single Sign-On Configuration with SAML and Okta",
+          "isMatch": false
+        },
+        {
+          "rank": 3,
+          "title": "User Roles, Permissions and Team Invitations",
+          "isMatch": false
+        }
+      ]
+    },
+    {
+      "id": "q24",
+      "query": "Can an Agent transfer workspace ownership or does it require the Owner?",
+      "difficulty": "paraphrased",
+      "expectedArticleId": "kb_art_12",
+      "expectedTitle": "Workspace Ownership Transfer and Reassignment",
+      "top1Hits": 5,
+      "top3Hits": 5,
+      "totalRuns": 5,
+      "lastRetrieved": [
+        {
+          "rank": 1,
+          "title": "Workspace Ownership Transfer and Reassignment",
+          "isMatch": true
+        },
+        {
+          "rank": 2,
+          "title": "User Roles, Permissions and Team Invitations",
+          "isMatch": false
+        },
+        {
+          "rank": 3,
+          "title": "Single Sign-On Configuration with SAML and Okta",
+          "isMatch": false
+        }
+      ]
+    },
+    {
+      "id": "q25",
+      "query": "What is the maximum file size upload limit and what document formats are accepted?",
+      "difficulty": "direct",
+      "expectedArticleId": "kb_art_15",
+      "expectedTitle": "File Attachment Limits, Quotas and Supported Formats",
+      "top1Hits": 5,
+      "top3Hits": 5,
+      "totalRuns": 5,
+      "lastRetrieved": [
+        {
+          "rank": 1,
+          "title": "File Attachment Limits, Quotas and Supported Formats",
+          "isMatch": true
+        },
+        {
+          "rank": 2,
+          "title": "API Rate Limits, Quotas and Webhook Retries",
+          "isMatch": false
+        },
+        {
+          "rank": 3,
+          "title": "Plan Downgrades, Feature Retention and Grace Periods",
+          "isMatch": false
+        }
+      ]
+    },
+    {
+      "id": "q26",
+      "query": "Where do I obtain proof of payment with VAT breakdown after an annual renewal?",
+      "difficulty": "hard",
+      "expectedArticleId": "kb_art_02",
+      "expectedTitle": "Billing Cycles, Invoicing and Tax Details",
+      "top1Hits": 5,
+      "top3Hits": 5,
+      "totalRuns": 5,
+      "lastRetrieved": [
+        {
+          "rank": 1,
+          "title": "Billing Cycles, Invoicing and Tax Details",
+          "isMatch": true
+        },
+        {
+          "rank": 2,
+          "title": "Refund Policy and Cancellation Windows",
+          "isMatch": false
+        },
+        {
+          "rank": 3,
+          "title": "Custom Domains and SSL Certificate Provisioning",
+          "isMatch": false
+        }
+      ]
+    },
+    {
+      "id": "q27",
+      "query": "Our compliance officer needs a tamper-evident record of administrator logins and permission changes from Q3.",
+      "difficulty": "hard",
+      "expectedArticleId": "kb_art_13",
+      "expectedTitle": "Audit Logs, Activity Tracking and Security Events",
+      "top1Hits": 5,
+      "top3Hits": 5,
+      "totalRuns": 5,
+      "lastRetrieved": [
+        {
+          "rank": 1,
+          "title": "Audit Logs, Activity Tracking and Security Events",
+          "isMatch": true
+        },
+        {
+          "rank": 2,
+          "title": "Data Export, Retention Schedules and GDPR Compliance",
+          "isMatch": false
+        },
+        {
+          "rank": 3,
+          "title": "IP Whitelisting and Network Access Restrictions",
+          "isMatch": false
+        }
+      ]
+    },
+    {
+      "id": "q28",
+      "query": "Can I prevent team members from connecting from home or public networks?",
+      "difficulty": "hard",
+      "expectedArticleId": "kb_art_14",
+      "expectedTitle": "IP Whitelisting and Network Access Restrictions",
+      "top1Hits": 0,
+      "top3Hits": 5,
+      "totalRuns": 5,
+      "lastRetrieved": [
+        {
+          "rank": 1,
+          "title": "User Roles, Permissions and Team Invitations",
+          "isMatch": false
+        },
+        {
+          "rank": 2,
+          "title": "Single Sign-On Configuration with SAML and Okta",
+          "isMatch": false
+        },
+        {
+          "rank": 3,
+          "title": "IP Whitelisting and Network Access Restrictions",
+          "isMatch": true
+        }
+      ]
+    },
+    {
+      "id": "q29",
+      "query": "What happens to our historical analytics and custom tags if we switch from Enterprise to Free tier?",
+      "difficulty": "hard",
+      "expectedArticleId": "kb_art_10",
+      "expectedTitle": "Plan Downgrades, Feature Retention and Grace Periods",
+      "top1Hits": 5,
+      "top3Hits": 5,
+      "totalRuns": 5,
+      "lastRetrieved": [
+        {
+          "rank": 1,
+          "title": "Plan Downgrades, Feature Retention and Grace Periods",
+          "isMatch": true
+        },
+        {
+          "rank": 2,
+          "title": "Custom Domains and SSL Certificate Provisioning",
+          "isMatch": false
+        },
+        {
+          "rank": 3,
+          "title": "File Attachment Limits, Quotas and Supported Formats",
+          "isMatch": false
+        }
+      ]
+    },
+    {
+      "id": "q30",
+      "query": "We are seeing 429 status codes on our automated reporting integration during nightly syncs.",
+      "difficulty": "hard",
+      "expectedArticleId": "kb_art_07",
+      "expectedTitle": "API Rate Limits, Quotas and Webhook Retries",
+      "top1Hits": 0,
+      "top3Hits": 0,
+      "totalRuns": 5,
+      "lastRetrieved": [
+        {
+          "rank": 1,
+          "title": "Password Reset and Account Recovery",
+          "isMatch": false
+        },
+        {
+          "rank": 2,
+          "title": "Two-Factor Authentication Setup and Recovery",
+          "isMatch": false
+        },
+        {
+          "rank": 3,
+          "title": "Workspace Ownership Transfer and Reassignment",
+          "isMatch": false
+        }
+      ]
+    }
+  ]
+}

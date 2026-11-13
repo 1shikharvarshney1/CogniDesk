@@ -1,0 +1,29 @@
+=== Step 5: RAG Evaluation Report ===
+Date: 2026-11-13T19:13:36.514Z
+Corpus: Synthetic support knowledge base (15 articles, 30 fixed questions, 5 hard)
+Retrieval Engine: MongoDB 8.3.7 $text index on { title: 'text', content: 'text' }
+LLM Engine: Google Gemini API (gemini-3.5-flash)
+
+1. Retrieval Accuracy (n = 150 across 5 measured runs):
+   - Top-1 Hit Rate: 86.7% (130 / 150)
+   - Top-3 Hit Rate: 96.7% (145 / 150)
+
+   Accuracy by Difficulty:
+   - Direct questions: Top-1 = 100.0%, Top-3 = 100.0% (n = 10)
+   - Paraphrased: Top-1 = 87.5%, Top-3 = 100.0% (n = 8)
+   - Synonyms: Top-1 = 85.7%, Top-3 = 100.0% (n = 7)
+   - Deliberately Hard: Top-1 = 60.0%, Top-3 = 80.0% (n = 5)
+
+2. Timing & Latencies (1 warm-up, 5 measured runs):
+   - Retrieval Latency (MongoDB $text): Median = 4.30 ms | p95 = 14.53 ms | p99 = 25.21 ms (n = 150)
+   - Gemini Generation Latency: Median = 4171.84 ms | p95 = 4588.62 ms (n = 5)
+   - Total End-to-End Latency: Median = 4181.44 ms | p95 = 4595.78 ms (n = 5)
+
+3. Retrieval Failure Cases & Weak Spots Analysis:
+
+[q30] Query: "We are seeing 429 status codes on our automated reporting integration during nightly syncs."
+  Category: hard
+  Expected: API Rate Limits, Quotas and Webhook Retries
+  Top-1 Hit Rate: 0% | Top-3 Hit Rate: 0%
+  Retrieved: [Rank 1] Password Reset and Account Recovery (match=false), [Rank 2] Two-Factor Authentication Setup and Recovery (match=false), [Rank 3] Workspace Ownership Transfer and Reassignment (match=false)
+  Root Cause: Deliberate vocabulary mismatch; MongoDB text search relies on Porter stemming and lexical exact matching without dense semantic vector embeddings.
