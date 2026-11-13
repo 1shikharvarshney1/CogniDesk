@@ -1,0 +1,29 @@
+=== Step 4: Rate Limiting Evaluation ===
+Date: 2026-11-13T19:10:40.665Z
+Configured Limits:
+- Customer Messages: 20 messages / minute
+- Agent AI Suggestion Cooldown: 5 seconds
+
+Test Results:
+1. Customer Message Limit (Service Level):
+   - Sent: 25 calls in rapid succession
+   - Allowed: 20
+   - Rejected: 5
+   - Triggered exactly at 20: YES
+2. Visitor Rate Limit Isolation:
+   - Separate visitor allowed immediately: YES
+3. Agent AI Cooldown (Service Level):
+   - Initial call allowed: YES
+   - Immediate call (0s) blocked: YES (remaining: 5s)
+   - Re-attempt after 5.2s allowed: YES
+4. WebSocket Integration Test:
+   - Rapid emits: 25
+   - Messages processed: 20
+   - Rate limit errors emitted: 5
+   - Error payload: "Rate limit exceeded: Please wait before sending more messages."
+   - Triggered exactly on message 21: YES
+
+Architectural Notes & Limitations:
+- Storage: In-memory JavaScript Map instances (customerMessageBuckets, agentCooldowns).
+- Persistence: Ephemeral; state clears on process restart or server crash.
+- Scalability: Not shared across multiple Node.js instances or processes. In a clustered or multi-container environment, requests would hit different in-memory maps unless coordinated via a centralized store (e.g., Redis sliding window / token bucket).

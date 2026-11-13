@@ -1,0 +1,48 @@
+{
+  "testDate": "2026-11-13T19:10:40.665Z",
+  "configuredLimits": {
+    "customerMaxPerMinute": 20,
+    "agentAiCooldownSeconds": 5
+  },
+  "tests": [
+    {
+      "name": "Customer message sliding window limit (service level)",
+      "configuredLimit": 20,
+      "callsMade": 25,
+      "allowedCount": 20,
+      "rejectedCount": 5,
+      "passed": true,
+      "details": "First 20 allowed; 21-25 rejected immediately by sliding window algorithm."
+    },
+    {
+      "name": "Visitor rate limit isolation (service level)",
+      "passed": true,
+      "details": "Rate limit bucket is strictly isolated per visitorId."
+    },
+    {
+      "name": "Agent AI cooldown enforcement (service level)",
+      "cooldownSeconds": 5,
+      "initialCallAllowed": true,
+      "immediateCallBlocked": true,
+      "remainingSecondsReported": 5,
+      "callAfterCooldownAllowed": true,
+      "passed": true,
+      "details": "Immediate call blocked with 5s remaining; allowed after cooldown elapsed."
+    },
+    {
+      "name": "Customer message rate limit over WebSocket (socket level)",
+      "configuredLimit": 20,
+      "messagesEmitted": 25,
+      "successfulMessages": 20,
+      "rateLimitErrorsReceived": 5,
+      "errorMessage": "Rate limit exceeded: Please wait before sending more messages.",
+      "passed": true,
+      "details": "Server emitted app:error on messages 21-25 with exact message: \"Rate limit exceeded: Please wait before sending more messages.\""
+    }
+  ],
+  "inMemoryArchitectureNotes": {
+    "storage": "JavaScript Map() in server memory (agentCooldowns, customerMessageBuckets)",
+    "persistence": "Ephemeral (lost on process restart or crash)",
+    "horizontalScaling": "Single-instance only; does NOT synchronize across multi-process or multi-server clusters without Redis or an external key-value store"
+  }
+}
