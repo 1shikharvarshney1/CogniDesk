@@ -193,3 +193,4 @@ The following claims are strictly backed by measured data from the evaluation ru
 
 6. **Input Validation Integrity:**  
    *"Enforced 100% rejection of malformed REST and WebSocket inputs across 36 attack vectors ($n = 36$) using schema-level Zod validation and domain constraints."*
+

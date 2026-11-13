@@ -14,10 +14,14 @@ if (fs.existsSync(serverEnvPath)) {
   dotenv.config({ path: path.resolve(process.cwd(), 'server/.env') });
 }
 
+if (!process.env.JWT_SECRET && process.env.NODE_ENV === 'production') {
+  throw new Error('FATAL: JWT_SECRET environment variable is required in production.');
+}
+
 export const env = {
   PORT: parseInt(process.env.PORT || '5000', 10),
   MONGODB_URI: process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/supportdesk',
-  JWT_SECRET: process.env.JWT_SECRET || 'dev_secret_key_supportdesk_random_fallback',
+  JWT_SECRET: process.env.JWT_SECRET || 'dev_insecure_secret_set_in_env_file',
   CLIENT_ORIGIN: process.env.CLIENT_ORIGIN || 'http://localhost:5173',
   GEMINI_API_KEY: (process.env.GEMINI_API_KEY || '').trim(),
   GEMINI_MODEL: process.env.GEMINI_MODEL || 'gemini-2.5-flash',
