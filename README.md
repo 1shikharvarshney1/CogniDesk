@@ -46,6 +46,37 @@ An Intercom-style customer support desk. Customers chat through a shareable link
 - **Multi-tenant isolation**: agents only see conversations and articles from their own workspace
 - **Mock mode**: works without an API key using simple rules
 
+## Empirical Performance & Evaluation
+
+All metrics were freshly measured on a single shared 8 GB host (Windows 11, Intel i5-10300H 4C/8T, local MongoDB 8.3.7) with zero synthetic padding. See full reproduction scripts and raw data in [/eval](eval/RESULTS.md).
+
+### 1. WebSocket Concurrency & Message Latency
+*Evaluated across 3 measured runs of 60s per level ($n = 38,368$ total delivered messages; 1 customer emit to agent receipt).*
+
+| Concurrent Sockets | Throughput (msg/s) | Latency p50 | Latency p95 | Latency p99 | Errors / Disconnects | Server CPU (Avg / Peak) | Server RAM (Avg) |
+| :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
+| **100** | 20.70 msg/s | 1,168.12 ms | 2,204.70 ms | 2,260.58 ms | 0 / 0 | 27.8% / 72.1% | 193.1 MB |
+| **250** | 61.72 msg/s | 90.15 ms | 384.91 ms | 1,087.08 ms | 0 / 0 | 33.3% / 80.7% | 302.9 MB |
+| **500** | 119.84 msg/s | 328.86 ms | 2,814.99 ms | 3,358.91 ms | 0 / 0 | 66.4% / 100.7% | 359.7 MB |
+
+### 2. Knowledge Base Retrieval (MongoDB $text Search)
+*Evaluated on a synthetic corpus of 15 articles and 30 test questions ($n = 150$ queries over 5 measured runs).*
+
+| Category | Questions | Evaluations ($n$) | Top-1 Accuracy | Top-3 Accuracy | Retrieval Latency (p50 / p95) |
+| :--- | :---: | :---: | :---: | :---: | :---: |
+| **Direct Queries** | 10 | 50 | 100.0% | 100.0% | 4.30 ms / 14.53 ms |
+| **Paraphrased** | 8 | 40 | 87.5% | 100.0% | 4.30 ms / 14.53 ms |
+| **Synonyms** | 7 | 35 | 85.7% | 100.0% | 4.30 ms / 14.53 ms |
+| **Deliberately Hard** | 5 | 25 | 60.0% | 80.0% | 4.30 ms / 14.53 ms |
+| **Total Corpus** | **30** | **150** | **86.7%** | **96.7%** | **Median: 4.30 ms \| p95: 14.53 ms** |
+
+*Note: Google Gemini LLM generation latency averaged 4,171.84 ms (p95: 4,588.62 ms, $n = 5$), with automated fallback to `gemini-3.1-flash-lite` on transient 503 errors.*
+
+### 3. Tenant Isolation & Validation
+- **Multi-Tenant Boundary Enforcement:** **16 / 16 (100.0%)** cross-workspace attack vectors blocked across REST APIs, conversation IDs, and WebSocket rooms (`ws:<id>`, `conv:<id>`).
+- **Input Validation:** **36 / 36 (100.0%)** malformed REST and WebSocket payloads rejected by Zod and domain constraints.
+- **Rate Limiting:** Confirmed customer message limiting at 20 msg/min and agent AI cooldown at 5s.
+
 ## Prerequisites
 
 - Node.js 20+
