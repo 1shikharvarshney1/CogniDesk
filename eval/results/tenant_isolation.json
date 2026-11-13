@@ -1,0 +1,104 @@
+{
+  "testDate": "2026-11-13T19:09:10.704Z",
+  "totalAttempts": 16,
+  "blockedAttempts": 16,
+  "unblockedCount": 0,
+  "attempts": [
+    {
+      "name": "Agent B lists conversations (GET /api/conversations)",
+      "category": "REST",
+      "blocked": true,
+      "details": "Scoped query successfully excluded Workspace A conversations"
+    },
+    {
+      "name": "Agent B fetches Workspace A conversation messages by ID (GET /api/conversations/:id/messages)",
+      "category": "REST",
+      "blocked": true,
+      "details": "Status 403: Forbidden: Access denied to conversation in another workspace"
+    },
+    {
+      "name": "Agent B lists articles (GET /api/articles)",
+      "category": "REST",
+      "blocked": true,
+      "details": "Scoped query successfully excluded Workspace A articles"
+    },
+    {
+      "name": "Agent B updates Workspace A article (PUT /api/articles/:id)",
+      "category": "REST",
+      "blocked": true,
+      "details": "Status 403: Forbidden: Access denied to article in another workspace"
+    },
+    {
+      "name": "Agent B deletes Workspace A article (DELETE /api/articles/:id)",
+      "category": "REST",
+      "blocked": true,
+      "details": "Status 403: Forbidden: Access denied to article in another workspace"
+    },
+    {
+      "name": "Unauthenticated request for conversation messages (GET /api/conversations/:id/messages)",
+      "category": "REST",
+      "blocked": true,
+      "details": "Status 401 returned without JWT"
+    },
+    {
+      "name": "Agent B fetches workspace stats (GET /api/stats)",
+      "category": "REST",
+      "blocked": true,
+      "details": "Stats returned: open=1, unassigned=1 (strictly scoped to Workspace B)"
+    },
+    {
+      "name": "Agent B emits agent:open for Workspace A conversation",
+      "category": "Socket",
+      "blocked": true,
+      "details": "Conversation not found or access denied"
+    },
+    {
+      "name": "Agent B emits agent:message targeting Workspace A conversation",
+      "category": "Socket",
+      "blocked": true,
+      "details": "Conversation not found or access denied"
+    },
+    {
+      "name": "Agent B emits agent:claim targeting Workspace A conversation",
+      "category": "Socket",
+      "blocked": true,
+      "details": "Conversation not found or access denied"
+    },
+    {
+      "name": "Agent B emits agent:close targeting Workspace A conversation",
+      "category": "Socket",
+      "blocked": true,
+      "details": "Conversation not found or access denied"
+    },
+    {
+      "name": "Agent B emits agent:suggest targeting Workspace A conversation",
+      "category": "Socket",
+      "blocked": true,
+      "details": "Conversation not found or access denied"
+    },
+    {
+      "name": "Cross-workspace socket event broadcast isolation (ws:<id> room)",
+      "category": "Socket",
+      "blocked": true,
+      "details": "Agent A received=true, Agent B leaked=false"
+    },
+    {
+      "name": "Customer in Workspace B tries to hijack Workspace A session via visitorId",
+      "category": "Socket",
+      "blocked": true,
+      "details": "Isolated: Server generated new conversation (6af7605557eeda353a17613e) in Workspace B"
+    },
+    {
+      "name": "Customer emits message without valid started conversation session",
+      "category": "Socket",
+      "blocked": true,
+      "details": "Chat session has not been started yet"
+    },
+    {
+      "name": "Customer room isolation (conv:<id> room)",
+      "category": "Socket",
+      "blocked": true,
+      "details": "Customer B received Customer A message: false"
+    }
+  ]
+}
