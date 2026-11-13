@@ -1,0 +1,42 @@
+=== Step 6: Input Validation Evaluation ===
+Date: 2026-11-13T19:11:53.072Z
+Total malformed payloads tested (n): 36
+Correctly rejected by Zod and schema validators: 36 / 36 (100.0%)
+
+Detailed Test Cases:
+[PASS] V01 | REST | POST /api/auth/register | Username < 2 chars -> 400 | Validation error: username: Username must be at least 2 characters
+[PASS] V02 | REST | POST /api/auth/register | Empty username -> 400 | Validation error: username: Username must be at least 2 characters
+[PASS] V03 | REST | POST /api/auth/register | Invalid email format (no domain) -> 400 | Validation error: email: Valid email is required
+[PASS] V04 | REST | POST /api/auth/register | Invalid email format (no user) -> 400 | Validation error: email: Valid email is required
+[PASS] V05 | REST | POST /api/auth/register | Password < 6 characters -> 400 | Validation error: password: Password must be at least 6 characters
+[PASS] V06 | REST | POST /api/auth/register | Missing username field -> 400 | Validation error: username: Required
+[PASS] V07 | REST | POST /api/auth/register | Missing email field -> 400 | Validation error: email: Required
+[PASS] V08 | REST | POST /api/auth/register | Missing password field -> 400 | Validation error: password: Required
+[PASS] V09 | REST | POST /api/auth/register | Empty JSON object -> 400 | Validation error: username: Required, email: Required, password: Required
+[PASS] V10 | REST | POST /api/auth/register | Non-string username (number) -> 400 | Validation error: username: Expected string, received number
+[PASS] V11 | REST | POST /api/auth/login | Invalid email format -> 400 | Validation error: email: Valid email is required
+[PASS] V12 | REST | POST /api/auth/login | Empty password string -> 400 | Validation error: password: Password is required
+[PASS] V13 | REST | POST /api/auth/login | Missing email field -> 400 | Validation error: email: Required
+[PASS] V14 | REST | POST /api/auth/login | Missing password field -> 400 | Validation error: password: Required
+[PASS] V15 | REST | POST /api/workspaces | Empty workspace name -> 400 | Validation error: name: Workspace name must be at least 2 characters
+[PASS] V16 | REST | POST /api/workspaces | Workspace name < 2 chars -> 400 | Validation error: name: Workspace name must be at least 2 characters
+[PASS] V17 | REST | POST /api/workspaces | Missing workspace name field -> 400 | Validation error: name: Required
+[PASS] V18 | REST | POST /api/workspaces | Non-string workspace name -> 400 | Validation error: name: Expected string, received number
+[PASS] V19 | REST | POST /api/workspaces/join | Join code < 6 chars -> 400 | Validation error: joinCode: Join code must be 6 characters
+[PASS] V20 | REST | POST /api/workspaces/join | Missing join code field -> 400 | Validation error: joinCode: Required
+[PASS] V21 | REST | POST /api/articles | Empty article title -> 400 | Validation error: title: Title is required
+[PASS] V22 | REST | POST /api/articles | Missing article title -> 400 | Validation error: title: Required
+[PASS] V23 | REST | POST /api/articles | Empty article content -> 400 | Validation error: content: Content is required
+[PASS] V24 | REST | POST /api/articles | Missing article content -> 400 | Validation error: content: Required
+[PASS] V25 | REST | POST /api/articles | Article content exceeds 4000 characters -> 400 | Validation error: content: Content cannot exceed 4000 characters
+[PASS] V26 | REST | POST /api/articles | Non-string article title -> 400 | Validation error: title: Expected string, received number
+[PASS] V27 | REST | PUT /api/articles/:id | Update article with empty title -> 400 | Validation error: title: Title is required
+[PASS] V28 | REST | PUT /api/articles/:id | Update article with content > 4000 chars -> 400 | Validation error: content: Content cannot exceed 4000 characters
+[PASS] V29 | WebSocket | WS Handshake (Agent) | Malformed JWT token in handshake -> Unauthorized | Unauthorized
+[PASS] V30 | WebSocket | WS Handshake (Customer) | Invalid / non-existent publicKey in handshake -> Workspace not found | Workspace not found
+[PASS] V31 | WebSocket | WS Handshake | Missing credentials in handshake -> Unauthorized | Unauthorized
+[PASS] V32 | WebSocket | WS customer:message | Empty customer message text string -> Message text cannot be empty | Message text cannot be empty
+[PASS] V33 | WebSocket | WS customer:message | Whitespace-only customer message text -> Message text cannot be empty | Message text cannot be empty
+[PASS] V34 | WebSocket | WS customer:message | Customer message text exceeding 1000 characters -> Message text cannot exceed 1000 characters | Message text cannot exceed 1000 characters
+[PASS] V35 | WebSocket | WS agent:message | Empty agent message text string -> Message text cannot be empty | Message text cannot be empty
+[PASS] V36 | WebSocket | WS agent:message | Agent message text exceeding 1000 characters -> Message text cannot exceed 1000 characters | Message text cannot exceed 1000 characters
