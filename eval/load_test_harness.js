@@ -377,3 +377,4 @@ runLoadTest().catch((err) => {
   console.error('Load test run failed:', err);
   process.exit(1);
 });
+
