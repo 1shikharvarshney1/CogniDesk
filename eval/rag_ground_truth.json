@@ -1,0 +1,295 @@
+{
+  "description": "Fixed ground truth evaluation dataset for CogniDesk RAG retrieval and AI suggestions.",
+  "corpusType": "synthetic",
+  "articleCount": 15,
+  "questionCount": 30,
+  "articles": [
+    {
+      "id": "kb_art_01",
+      "title": "Password Reset and Account Recovery",
+      "content": "To reset your password, navigate to the login screen and click 'Forgot Password'. You will receive an automated recovery link valid for 30 minutes. If you do not see the email, check your spam or quarantine folder. Accounts locked after 5 consecutive failed attempts will automatically unlock after 15 minutes, or you can contact an administrator for immediate unlock."
+    },
+    {
+      "id": "kb_art_02",
+      "title": "Billing Cycles, Invoicing and Tax Details",
+      "content": "Subscription billing runs on either a monthly or annual cadence starting on the day of activation. Invoices are generated automatically on the first day of each billing cycle with full VAT and GST breakdown. Upgrades take effect immediately with prorated charges, while downgrades take effect at the end of the current billing period. Invoices can be downloaded as PDF from Settings > Billing > Invoices."
+    },
+    {
+      "id": "kb_art_03",
+      "title": "Refund Policy and Cancellation Windows",
+      "content": "We offer a 14-day money-back guarantee for all new annual subscriptions from the initial purchase date. Monthly plans are eligible for a refund within 48 hours of charge if zero API or seat activity occurred. To request a refund or reimbursement, email billing support with your transaction reference. Refunds are processed back to the original payment method within 5-10 business days."
+    },
+    {
+      "id": "kb_art_04",
+      "title": "Two-Factor Authentication Setup and Recovery",
+      "content": "Two-factor authentication (2FA / MFA) adds an extra layer of security using TOTP apps like Google Authenticator or 1Password. To enable 2FA, go to Profile > Security > Enable 2FA, scan the QR code, and store the 10 emergency recovery codes in a secure offline location. If you lose your authenticator device, enter one of the one-time recovery codes to sign in and reset your 2FA credentials."
+    },
+    {
+      "id": "kb_art_05",
+      "title": "User Roles, Permissions and Team Invitations",
+      "content": "Workspaces support three user roles: Owner, Admin, and Agent. Owners have full billing and deletion authority. Admins can manage integrations, invite team members, and modify knowledge base articles. Agents can answer conversations, view stats, and access public articles. To invite teammates, navigate to Settings > Team > Invite Agent and provide their email address."
+    },
+    {
+      "id": "kb_art_06",
+      "title": "Single Sign-On Configuration with SAML and Okta",
+      "content": "Enterprise workspaces can enforce Single Sign-On (SSO) using SAML 2.0 identity providers such as Okta, Azure AD, or Google Workspace. Configure your IdP with the ACS URL and Entity ID provided under Settings > Security > SSO. Once configured, you can enable 'Enforce SSO' to require all domain members to authenticate via your identity provider."
+    },
+    {
+      "id": "kb_art_07",
+      "title": "API Rate Limits, Quotas and Webhook Retries",
+      "content": "Standard REST API access is limited to 120 requests per minute per API key. When a client exceeds the limit, the server responds with HTTP 429 Too Many Requests and a Retry-After header. Webhook deliveries use an exponential backoff retry mechanism (10s, 30s, 2m, 10m, 1h) before marking the webhook delivery as failed after 5 attempts."
+    },
+    {
+      "id": "kb_art_08",
+      "title": "Data Export, Retention Schedules and GDPR Compliance",
+      "content": "Workspace owners can request a complete data export in JSON format under Settings > Compliance > Export Data. Data archives contain all conversations, customer profiles, and knowledge base articles. By default, customer conversation logs are retained for 365 days unless a custom retention policy is configured. GDPR Right-to-be-Forgotten erasure requests are fulfilled within 30 days."
+    },
+    {
+      "id": "kb_art_09",
+      "title": "Custom Domains and SSL Certificate Provisioning",
+      "content": "You can host your customer support portal on a custom domain (e.g. support.yourcompany.com). To set up, add a CNAME record pointing your subdomain to host.cognidesk.com. CogniDesk automatically provisions and renews a free Let's Encrypt SSL/TLS certificate within 60 minutes of DNS propagation."
+    },
+    {
+      "id": "kb_art_10",
+      "title": "Plan Downgrades, Feature Retention and Grace Periods",
+      "content": "When downgrading from a paid plan to the Free tier, premium features such as AI suggested replies and custom domains remain active until the end of the prepaid billing cycle. Historical conversation transcripts and articles are preserved in read-only mode. If team members exceed the free seat limit of 3, extra agent accounts are suspended after a 7-day grace period."
+    },
+    {
+      "id": "kb_art_11",
+      "title": "Email Notification Preferences and Digest Frequency",
+      "content": "Agents can configure notification alerts for new incoming conversations, unassigned chats, and customer mentions. Delivery options include real-time browser push notifications, instant emails, or a daily digest summary sent at 09:00 AM local time. Configure these preferences in Profile > Notifications."
+    },
+    {
+      "id": "kb_art_12",
+      "title": "Workspace Ownership Transfer and Reassignment",
+      "content": "Only the current Workspace Owner can transfer primary ownership to another existing Admin. To initiate transfer, go to Settings > Workspace > Transfer Ownership, select the destination administrator, and confirm with your password. The transfer is instantaneous and downgrades the previous owner to Admin status."
+    },
+    {
+      "id": "kb_art_13",
+      "title": "Audit Logs, Activity Tracking and Security Events",
+      "content": "Audit logs record all significant security and administrative actions, including agent logins, role changes, knowledge base modifications, and export requests. Logs include timestamps, actor IP address, user agent, and action payload. Enterprise customers can stream audit events to external SIEM platforms or export CSV logs from Settings > Security > Audit Logs."
+    },
+    {
+      "id": "kb_art_14",
+      "title": "IP Whitelisting and Network Access Restrictions",
+      "content": "Restrict access to your workspace by specifying allowed IPv4 and IPv6 addresses or CIDR blocks under Settings > Security > IP Whitelist. When enabled, any connection or login attempt from an unlisted IP address is rejected with HTTP 403 Forbidden. We recommend adding at least two administrator IPs to avoid accidental lockout."
+    },
+    {
+      "id": "kb_art_15",
+      "title": "File Attachment Limits, Quotas and Supported Formats",
+      "content": "Customers and agents can attach files up to 25 MB per upload. Supported file types include PNG, JPG, PDF, TXT, CSV, and DOCX. Executable files (EXE, BAT, SH) are strictly blocked for security. Total workspace storage capacity depends on tier: 5 GB for Starter, 50 GB for Professional, and 500 GB for Enterprise."
+    }
+  ],
+  "questions": [
+    {
+      "id": "q01",
+      "query": "How do I reset my lost password if I cannot log in?",
+      "expectedArticleId": "kb_art_01",
+      "difficulty": "direct",
+      "notes": "Direct query on password reset"
+    },
+    {
+      "id": "q02",
+      "query": "What happens if an account gets locked out after multiple failed attempts?",
+      "expectedArticleId": "kb_art_01",
+      "difficulty": "paraphrased",
+      "notes": "Paraphrased account lockout query"
+    },
+    {
+      "id": "q03",
+      "query": "Where can I view and download past billing statements and VAT invoices?",
+      "expectedArticleId": "kb_art_02",
+      "difficulty": "direct",
+      "notes": "Direct billing and invoice inquiry"
+    },
+    {
+      "id": "q04",
+      "query": "How are subscription upgrades calculated during the middle of the month?",
+      "expectedArticleId": "kb_art_02",
+      "difficulty": "synonym",
+      "notes": "Synonym/concept for proration during billing cycle"
+    },
+    {
+      "id": "q05",
+      "query": "What is your refund policy if I want to cancel my annual subscription within 14 days?",
+      "expectedArticleId": "kb_art_03",
+      "difficulty": "direct",
+      "notes": "Direct refund policy query"
+    },
+    {
+      "id": "q06",
+      "query": "Can I get a reimbursement for a monthly subscription charged yesterday without any activity?",
+      "expectedArticleId": "kb_art_03",
+      "difficulty": "synonym",
+      "notes": "Uses synonym reimbursement for refund"
+    },
+    {
+      "id": "q07",
+      "query": "How do I set up two-factor authentication with Google Authenticator?",
+      "expectedArticleId": "kb_art_04",
+      "difficulty": "direct",
+      "notes": "Direct 2FA setup query"
+    },
+    {
+      "id": "q08",
+      "query": "What should I do if I lost my phone and cannot enter my MFA verification code?",
+      "expectedArticleId": "kb_art_04",
+      "difficulty": "synonym",
+      "notes": "Uses MFA and backup codes context"
+    },
+    {
+      "id": "q09",
+      "query": "How do I add a new support agent to our workspace?",
+      "expectedArticleId": "kb_art_05",
+      "difficulty": "paraphrased",
+      "notes": "Paraphrased team invitation"
+    },
+    {
+      "id": "q10",
+      "query": "What permissions does an Admin have compared to an Owner or Agent?",
+      "expectedArticleId": "kb_art_05",
+      "difficulty": "direct",
+      "notes": "Direct role permissions comparison"
+    },
+    {
+      "id": "q11",
+      "query": "How do I configure SAML SSO with Okta or Azure AD?",
+      "expectedArticleId": "kb_art_06",
+      "difficulty": "direct",
+      "notes": "Direct SSO integration query"
+    },
+    {
+      "id": "q12",
+      "query": "Can we mandate that all employees log in through corporate single sign-on?",
+      "expectedArticleId": "kb_art_06",
+      "difficulty": "paraphrased",
+      "notes": "Paraphrased enforce SSO requirement"
+    },
+    {
+      "id": "q13",
+      "query": "What are the API rate limits and how many calls can we make per minute?",
+      "expectedArticleId": "kb_art_07",
+      "difficulty": "direct",
+      "notes": "Direct rate limits question"
+    },
+    {
+      "id": "q14",
+      "query": "How often will your server retry failed webhook deliveries?",
+      "expectedArticleId": "kb_art_07",
+      "difficulty": "paraphrased",
+      "notes": "Paraphrased webhook retry backoff"
+    },
+    {
+      "id": "q15",
+      "query": "How can I export all our workspace conversation data for compliance?",
+      "expectedArticleId": "kb_art_08",
+      "difficulty": "direct",
+      "notes": "Direct data export query"
+    },
+    {
+      "id": "q16",
+      "query": "How long are customer chats stored and how do you handle GDPR deletion requests?",
+      "expectedArticleId": "kb_art_08",
+      "difficulty": "paraphrased",
+      "notes": "Data retention and GDPR erasure query"
+    },
+    {
+      "id": "q17",
+      "query": "How do I connect our custom domain like support.example.com to CogniDesk?",
+      "expectedArticleId": "kb_art_09",
+      "difficulty": "direct",
+      "notes": "Direct custom domain setup"
+    },
+    {
+      "id": "q18",
+      "query": "Does CogniDesk provide automated SSL HTTPS certificates for custom web domains?",
+      "expectedArticleId": "kb_art_09",
+      "difficulty": "synonym",
+      "notes": "Mentions HTTPS and Let's Encrypt SSL certificate provisioning"
+    },
+    {
+      "id": "q19",
+      "query": "What happens to our chat history and AI features if we downgrade to the free tier?",
+      "expectedArticleId": "kb_art_10",
+      "difficulty": "paraphrased",
+      "notes": "Downgrade effects and feature retention"
+    },
+    {
+      "id": "q20",
+      "query": "Is there a grace period if our team has more members than the free tier allows?",
+      "expectedArticleId": "kb_art_10",
+      "difficulty": "synonym",
+      "notes": "Excess seats and grace period on downgrade"
+    },
+    {
+      "id": "q21",
+      "query": "How do I switch from instant chat emails to a daily summary email?",
+      "expectedArticleId": "kb_art_11",
+      "difficulty": "synonym",
+      "notes": "Synonym daily digest for summary email"
+    },
+    {
+      "id": "q22",
+      "query": "Can I receive desktop browser push alerts when a customer sends a message?",
+      "expectedArticleId": "kb_art_11",
+      "difficulty": "paraphrased",
+      "notes": "Browser push notifications settings"
+    },
+    {
+      "id": "q23",
+      "query": "How can I hand over primary ownership of our company workspace to another administrator?",
+      "expectedArticleId": "kb_art_12",
+      "difficulty": "synonym",
+      "notes": "Uses hand over instead of transfer ownership"
+    },
+    {
+      "id": "q24",
+      "query": "Can an Agent transfer workspace ownership or does it require the Owner?",
+      "expectedArticleId": "kb_art_12",
+      "difficulty": "paraphrased",
+      "notes": "Authority required for ownership transfer"
+    },
+    {
+      "id": "q25",
+      "query": "What is the maximum file size upload limit and what document formats are accepted?",
+      "expectedArticleId": "kb_art_15",
+      "difficulty": "direct",
+      "notes": "Direct file attachment limit and format query"
+    },
+    {
+      "id": "q26",
+      "query": "Where do I obtain proof of payment with VAT breakdown after an annual renewal?",
+      "expectedArticleId": "kb_art_02",
+      "difficulty": "hard",
+      "notes": "Hard: Uses 'proof of payment with VAT breakdown' instead of invoice/receipt; tests billing article retrieval"
+    },
+    {
+      "id": "q27",
+      "query": "Our compliance officer needs a tamper-evident record of administrator logins and permission changes from Q3.",
+      "expectedArticleId": "kb_art_13",
+      "difficulty": "hard",
+      "notes": "Hard: Indirect phrasing about compliance officer and record of administrator logins; targets audit logs"
+    },
+    {
+      "id": "q28",
+      "query": "Can I prevent team members from connecting from home or public networks?",
+      "expectedArticleId": "kb_art_14",
+      "difficulty": "hard",
+      "notes": "Hard: Negative scenario phrasing connecting from home/public networks; targets IP whitelisting & CIDR restrictions"
+    },
+    {
+      "id": "q29",
+      "query": "What happens to our historical analytics and custom tags if we switch from Enterprise to Free tier?",
+      "expectedArticleId": "kb_art_10",
+      "difficulty": "hard",
+      "notes": "Hard: Unmentioned features (analytics/tags) asked in the context of switching to Free tier; targets downgrade article"
+    },
+    {
+      "id": "q30",
+      "query": "We are seeing 429 status codes on our automated reporting integration during nightly syncs.",
+      "expectedArticleId": "kb_art_07",
+      "difficulty": "hard",
+      "notes": "Hard: Specific HTTP status code and automated integration symptom; targets API rate limits article"
+    }
+  ]
+}
