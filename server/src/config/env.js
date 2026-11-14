@@ -26,7 +26,11 @@ export const env = {
   GEMINI_API_KEY: (process.env.GEMINI_API_KEY || '').trim(),
   GEMINI_MODEL: process.env.GEMINI_MODEL || 'gemini-2.5-flash',
   GEMINI_FALLBACK_MODEL: process.env.GEMINI_FALLBACK_MODEL || 'gemini-2.0-flash',
-  AI_COOLDOWN_SECONDS: parseInt(process.env.AI_COOLDOWN_SECONDS || '5', 10)
+  AI_COOLDOWN_SECONDS: parseInt(process.env.AI_COOLDOWN_SECONDS || '5', 10),
+  RETRIEVAL_MODE: ['text', 'vector', 'hybrid'].includes((process.env.RETRIEVAL_MODE || '').toLowerCase())
+    ? process.env.RETRIEVAL_MODE.toLowerCase()
+    : 'text',
+  EMBEDDING_MODEL: process.env.EMBEDDING_MODEL || 'gemini-embedding-001'
 };
 
 // Safe key logging: only set/not set and length, never value
@@ -34,4 +38,5 @@ const keyStatus = env.GEMINI_API_KEY
   ? `set (length: ${env.GEMINI_API_KEY.length})`
   : 'not set';
 console.log(`[Config] GEMINI_API_KEY is ${keyStatus}`);
+console.log(`[Config] RETRIEVAL_MODE is ${env.RETRIEVAL_MODE} | EMBEDDING_MODEL is ${env.EMBEDDING_MODEL}`);
 
