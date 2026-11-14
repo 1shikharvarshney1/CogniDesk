@@ -59,21 +59,23 @@ All metrics were freshly measured on a single shared 8 GB host (Windows 11, Inte
 | **250** | 61.72 msg/s | 90.15 ms | 384.91 ms | 1,087.08 ms | 0 / 0 | 33.3% / 80.7% | 302.9 MB |
 | **500** | 119.84 msg/s | 328.86 ms | 2,814.99 ms | 3,358.91 ms | 0 / 0 | 66.4% / 100.7% | 359.7 MB |
 
-### 2. Knowledge Base Retrieval (MongoDB $text Search)
-*Evaluated on a synthetic corpus of 15 articles and 30 test questions ($n = 150$ queries over 5 measured runs).*
+### 2. Knowledge Base Retrieval Modes & Benchmark
+*Evaluated across all 3 retrieval modes on a synthetic corpus of 15 articles and 30 fixed test questions ($n = 150$ queries per mode over 5 measured runs). Pre-computed article embeddings measure pure search latency; query-embedding latency is measured separately.*
 
-| Category | Questions | Evaluations ($n$) | Top-1 Accuracy | Top-3 Accuracy | Retrieval Latency (p50 / p95) |
-| :--- | :---: | :---: | :---: | :---: | :---: |
-| **Direct Queries** | 10 | 50 | 100.0% | 100.0% | 4.30 ms / 14.53 ms |
-| **Paraphrased** | 8 | 40 | 87.5% | 100.0% | 4.30 ms / 14.53 ms |
-| **Synonyms** | 7 | 35 | 85.7% | 100.0% | 4.30 ms / 14.53 ms |
-| **Deliberately Hard** | 5 | 25 | 60.0% | 80.0% | 4.30 ms / 14.53 ms |
-| **Total Corpus** | **30** | **150** | **86.7%** | **96.7%** | **Median: 4.30 ms \| p95: 14.53 ms** |
+| Mode | Engine / Strategy | Top-1 Accuracy | Top-3 Accuracy | Search Latency p50 | Search Latency p95 | Query Embed p50 | Query Embed p95 |
+| :--- | :--- | :---: | :---: | :---: | :---: | :---: | :---: |
+| **`text`** (default) | MongoDB 8.3.7 `$text` Index | **86.7%** (130/150) | **96.7%** (145/150) | **1.28 ms** | **1.78 ms** | *N/A* | *N/A* |
+| **`vector`** | Local Cosine (`gemini-embedding-001`) | **100.0%** (150/150) | **100.0%** (150/150) | **40.72 ms** | **47.38 ms** | **460.34 ms** | **471.07 ms** |
+| **`hybrid`** | Reciprocal Rank Fusion ($k=60$) | **96.7%** (145/150) | **100.0%** (150/150) | **40.92 ms** | **49.77 ms** | **460.34 ms** | **471.07 ms** |
 
-*Note: Google Gemini LLM generation latency averaged 4,171.84 ms (p95: 4,588.62 ms, $n = 5$), with automated fallback to `gemini-3.1-flash-lite` on transient 503 errors.*
+*Category-level findings:*
+- **Direct queries (n=10):** All three modes achieved 100.0% Top-1 accuracy.
+- **Paraphrased (n=8) & Synonyms (n=7):** Vector achieved 100.0% Top-1, whereas text mode dropped to 87.5% and 85.7% due to vocabulary divergence.
+- **Deliberately Hard (n=5):** Text mode achieved 60.0% Top-1 and 80.0% Top-3 (completely missing question `q30` on 429 status codes). Vector and Hybrid achieved 100.0% Top-1.
+- **End-to-End LLM Generation:** Google Gemini (`gemini-3.5-flash`) drafting latency averaged 16.48s median ($n = 5$).
 
 ### 3. Tenant Isolation & Validation
-- **Multi-Tenant Boundary Enforcement:** **16 / 16 (100.0%)** cross-workspace attack vectors blocked across REST APIs, conversation IDs, and WebSocket rooms (`ws:<id>`, `conv:<id>`).
+- **Multi-Tenant Boundary Enforcement:** **20 / 20 (100.0%)** cross-workspace attack vectors blocked across REST APIs, conversation IDs, WebSocket rooms (`ws:<id>`, `conv:<id>`), and knowledge base retrieval scopes (text, vector, and hybrid).
 - **Input Validation:** **36 / 36 (100.0%)** malformed REST and WebSocket payloads rejected by Zod and domain constraints.
 - **Rate Limiting:** Confirmed customer message limiting at 20 msg/min and agent AI cooldown at 5s.
 
@@ -101,16 +103,59 @@ npm run dev
 
 ## Environment Variables
 
-| Variable                | Default                                 | Description                     |
-| ----------------------- | --------------------------------------- | ------------------------------- |
-| `PORT`                  | `5000`                                  | Server port                     |
-| `MONGODB_URI`           | `mongodb://127.0.0.1:27017/supportdesk` | MongoDB connection string       |
-| `JWT_SECRET`            | none (required)                         | Secret for signing agent tokens |
-| `CLIENT_ORIGIN`         | `http://localhost:5173`                 | Allowed CORS origin             |
-| `GEMINI_API_KEY`        | empty (mock mode)                       | Google AI Studio key            |
-| `GEMINI_MODEL`          | `gemini-3.5-flash`                      | Primary Gemini model            |
-| `GEMINI_FALLBACK_MODEL` | `gemini-3.1-flash-lite`                 | Fallback model                  |
-| `AI_COOLDOWN_SECONDS`   | `5`                                     | Cooldown between AI suggestions |
+| Variable                | Default                                 | Description                                        |
+| ----------------------- | --------------------------------------- | -------------------------------------------------- |
+| `PORT`                  | `5000`                                  | Server port                                        |
+| `MONGODB_URI`           | `mongodb://127.0.0.1:27017/supportdesk` | MongoDB connection string                          |
+| `JWT_SECRET`            | none (required)                         | Secret for signing agent tokens                    |
+| `CLIENT_ORIGIN`         | `http://localhost:5173`                 | Allowed CORS origin                                |
+| `GEMINI_API_KEY`        | empty (mock mode)                       | Google AI Studio key                               |
+| `GEMINI_MODEL`          | `gemini-3.5-flash`                      | Primary Gemini model for generation                |
+| `GEMINI_FALLBACK_MODEL` | `gemini-3.1-flash-lite`                 | Fallback generation model                          |
+| `RETRIEVAL_MODE`        | `text`                                  | Knowledge retrieval engine: `text`, `vector`, `hybrid` |
+| `EMBEDDING_MODEL`       | `gemini-embedding-001`                  | Gemini dense embedding model                      |
+| `AI_COOLDOWN_SECONDS`   | `5`                                     | Cooldown between AI suggestions                    |
+
+## Retrieval Modes
+
+CogniDesk supports three retrieval strategies behind `RETRIEVAL_MODE`:
+
+1. **Text (`text`, default):**
+   - Uses MongoDB's built-in `$text` inverted index with Porter stemming.
+   - **Pros:** Fast local execution (~1.3 ms median search latency), zero API calls or embedding overhead.
+   - **Cons:** Fails on queries with vocabulary divergence (e.g., "connecting from home" vs "IP whitelisting", or error codes like 429).
+2. **Vector (`vector`):**
+   - Embeds knowledge base articles with `gemini-embedding-001` (3,072 dimensions, L2 normalized).
+   - Generates a `RETRIEVAL_QUERY` embedding for the customer inquiry and computes cosine similarity in Node across all articles in the caller's workspace.
+   - **Pros:** High semantic recall (100% Top-1 accuracy on our 30-question benchmark), resolving paraphrasing and synonyms.
+   - **Cons:** Requires a Gemini API round-trip for query embedding (~460 ms median) and ~40 ms local similarity calculation.
+3. **Hybrid (`hybrid`):**
+   - Runs text search and vector search in parallel within the workspace.
+   - Merges and re-ranks the candidates using Reciprocal Rank Fusion (RRF, $k=60$):
+     $$\text{RRF\_Score}(d) = \sum_{m \in \{\text{text}, \text{vector}\}} \frac{1}{60 + \text{rank}_m(d)}$$
+   - Combines lexical precision for exact keywords with semantic resilience.
+
+> **Tenant Isolation:** Vector and hybrid retrieval strictly filter candidates by `{ workspace: workspaceId }` before computing similarity, ensuring cross-tenant boundaries remain uncompromised.
+> **Graceful Fallback:** If `GEMINI_API_KEY` is unset or embedding generation fails, `vector` and `hybrid` automatically fall back to `$text` search.
+
+## Running Embeddings Backfill & Evaluations
+
+### Backfill Article Embeddings
+When switching existing workspaces to `vector` or `hybrid` mode, run the backfill script to generate embeddings for articles that lack them:
+
+```bash
+cd server
+npm run embeddings:backfill
+```
+
+### Running the Retrieval Evaluation
+To execute the 30-question comparative benchmark across all three retrieval modes and generate fresh performance metrics:
+
+```bash
+node eval/test_rag.js
+```
+
+Raw evaluation output is saved to `eval/results/rag.json` and `eval/results/rag.txt`. Detailed methodology and benchmark results are documented in [eval/RESULTS.md](eval/RESULTS.md).
 
 ## Enabling the Real AI
 
@@ -134,7 +179,7 @@ Each browser tab keeps its own session. Use one normal window for the agent and 
 ## How RAG Works Here
 
 1. **Query**: when an agent clicks Suggest reply, the customer's latest messages are used as the query.
-2. **Search**: MongoDB runs a `$text` search on the workspace's articles and ranks by relevance.
+2. **Search**: the retrieval service searches the workspace's articles using the configured `RETRIEVAL_MODE` (MongoDB `$text` keyword search, Gemini dense vector embeddings, or hybrid RRF).
 3. **Grounding**: the top articles are added to the Gemini prompt as the only source of truth.
 4. **Safety**: if the knowledge base doesn't contain the answer, the AI says so instead of inventing one.
 5. **Human in the loop**: suggestions are drafts; the agent edits and sends them.
