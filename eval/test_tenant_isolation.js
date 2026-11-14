@@ -14,6 +14,7 @@ import { Workspace } from '../server/src/models/Workspace.js';
 import { Conversation } from '../server/src/models/Conversation.js';
 import { Message } from '../server/src/models/Message.js';
 import { Article } from '../server/src/models/Article.js';
+import { findRelevantArticles } from '../server/src/services/retrievalService.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -74,10 +75,17 @@ async function runTenantIsolationTests() {
     text: 'Confidential business data of Tenant Alpha'
   });
 
+  const dummyVecA = new Array(3072).fill(0);
+  dummyVecA[0] = 1.0;
+  const dummyVecB = new Array(3072).fill(0);
+  dummyVecB[1] = 1.0;
+
   const artA = await Article.create({
     workspace: wsA._id,
     title: 'Alpha Secret Operating Manual',
-    content: 'Internal procedures strictly for Workspace Alpha team members.'
+    content: 'Internal procedures strictly for Workspace Alpha team members.',
+    embedding: dummyVecA,
+    embeddingModel: 'gemini-embedding-001'
   });
 
   // 2. Seed Workspace B
@@ -108,7 +116,9 @@ async function runTenantIsolationTests() {
   const artB = await Article.create({
     workspace: wsB._id,
     title: 'Beta Public Documentation',
-    content: 'Documentation for Workspace Beta.'
+    content: 'Documentation for Workspace Beta.',
+    embedding: dummyVecB,
+    embeddingModel: 'gemini-embedding-001'
   });
 
   const tokenA = createToken(userA._id);
@@ -529,6 +539,80 @@ async function runTenantIsolationTests() {
       !custBReceived,
       `Customer B received Customer A message: ${custBReceived}`
     );
+  }
+
+  // --- RETRIEVAL ISOLATION CHECKS (Step 2d) ---
+
+  // Attempt 17: Tenant B queries articles via Text Mode targeting Tenant A content
+  try {
+    const articles = await findRelevantArticles(wsB._id, 'Alpha Secret Operating Manual', 3, { mode: 'text' });
+    const hasArtA = articles.some((a) => a._id.toString() === artA._id.toString());
+    recordAttempt(
+      'Text retrieval scoping (findRelevantArticles mode=text)',
+      'Retrieval',
+      !hasArtA,
+      hasArtA
+        ? 'LEAK: Workspace A article retrieved by Workspace B text search'
+        : 'Workspace A article strictly excluded from Workspace B text search'
+    );
+  } catch (err) {
+    recordAttempt('Text retrieval scoping', 'Retrieval', false, err.message);
+  }
+
+  // Attempt 18: Tenant B queries articles via Vector Mode targeting Tenant A content (with exact-match embedding)
+  try {
+    const articles = await findRelevantArticles(wsB._id, 'Alpha Secret Operating Manual', 3, {
+      mode: 'vector',
+      queryEmbedding: dummyVecA
+    });
+    const hasArtA = articles.some((a) => a._id.toString() === artA._id.toString());
+    recordAttempt(
+      'Vector retrieval scoping (findRelevantArticles mode=vector)',
+      'Retrieval',
+      !hasArtA,
+      hasArtA
+        ? 'LEAK: Workspace A article retrieved by Workspace B vector search'
+        : 'Workspace A article strictly excluded from Workspace B vector search despite identical vector'
+    );
+  } catch (err) {
+    recordAttempt('Vector retrieval scoping', 'Retrieval', false, err.message);
+  }
+
+  // Attempt 19: Tenant B queries articles via Hybrid Mode targeting Tenant A content
+  try {
+    const articles = await findRelevantArticles(wsB._id, 'Alpha Secret Operating Manual', 3, {
+      mode: 'hybrid',
+      queryEmbedding: dummyVecA
+    });
+    const hasArtA = articles.some((a) => a._id.toString() === artA._id.toString());
+    recordAttempt(
+      'Hybrid retrieval scoping (findRelevantArticles mode=hybrid)',
+      'Retrieval',
+      !hasArtA,
+      hasArtA
+        ? 'LEAK: Workspace A article retrieved by Workspace B hybrid search'
+        : 'Workspace A article strictly excluded from Workspace B hybrid search'
+    );
+  } catch (err) {
+    recordAttempt('Hybrid retrieval scoping', 'Retrieval', false, err.message);
+  }
+
+  // Attempt 20: Tenant B queries articles via Vector Mode with live query embedding generation
+  try {
+    const articles = await findRelevantArticles(wsB._id, 'Internal procedures strictly for Workspace Alpha team members', 3, {
+      mode: 'vector'
+    });
+    const hasArtA = articles.some((a) => a._id.toString() === artA._id.toString());
+    recordAttempt(
+      'Vector retrieval scoping with live embedding (findRelevantArticles mode=vector)',
+      'Retrieval',
+      !hasArtA,
+      hasArtA
+        ? 'LEAK: Workspace A article retrieved by Workspace B vector search'
+        : 'Workspace A article strictly excluded from Workspace B vector search'
+    );
+  } catch (err) {
+    recordAttempt('Vector retrieval scoping with live embedding', 'Retrieval', false, err.message);
   }
 
   // Clean up sockets

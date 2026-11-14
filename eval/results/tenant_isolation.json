@@ -1,7 +1,7 @@
 {
-  "testDate": "2026-11-13T19:09:10.704Z",
-  "totalAttempts": 16,
-  "blockedAttempts": 16,
+  "testDate": "2026-11-14T14:41:33.083Z",
+  "totalAttempts": 20,
+  "blockedAttempts": 20,
   "unblockedCount": 0,
   "attempts": [
     {
@@ -86,7 +86,7 @@
       "name": "Customer in Workspace B tries to hijack Workspace A session via visitorId",
       "category": "Socket",
       "blocked": true,
-      "details": "Isolated: Server generated new conversation (6af7605557eeda353a17613e) in Workspace B"
+      "details": "Isolated: Server generated new conversation (6af8731afa0eb1f3aedb3cf2) in Workspace B"
     },
     {
       "name": "Customer emits message without valid started conversation session",
@@ -99,6 +99,30 @@
       "category": "Socket",
       "blocked": true,
       "details": "Customer B received Customer A message: false"
+    },
+    {
+      "name": "Text retrieval scoping (findRelevantArticles mode=text)",
+      "category": "Retrieval",
+      "blocked": true,
+      "details": "Workspace A article strictly excluded from Workspace B text search"
+    },
+    {
+      "name": "Vector retrieval scoping (findRelevantArticles mode=vector)",
+      "category": "Retrieval",
+      "blocked": true,
+      "details": "Workspace A article strictly excluded from Workspace B vector search despite identical vector"
+    },
+    {
+      "name": "Hybrid retrieval scoping (findRelevantArticles mode=hybrid)",
+      "category": "Retrieval",
+      "blocked": true,
+      "details": "Workspace A article strictly excluded from Workspace B hybrid search"
+    },
+    {
+      "name": "Vector retrieval scoping with live embedding (findRelevantArticles mode=vector)",
+      "category": "Retrieval",
+      "blocked": true,
+      "details": "Workspace A article strictly excluded from Workspace B vector search"
     }
   ]
 }
