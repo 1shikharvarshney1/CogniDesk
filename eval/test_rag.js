@@ -8,13 +8,14 @@ import { env } from '../server/src/config/env.js';
 import { Article } from '../server/src/models/Article.js';
 import { Workspace } from '../server/src/models/Workspace.js';
 import { findRelevantArticles } from '../server/src/services/retrievalService.js';
+import { generateEmbedding } from '../server/src/services/embeddingService.js';
 import { suggestReply } from '../server/src/services/aiAssist.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 function computePercentile(arr, p) {
-  if (!arr.length) return 0;
+  if (!arr || !arr.length) return 0;
   const sorted = [...arr].sort((a, b) => a - b);
   const index = (p / 100) * (sorted.length - 1);
   const lower = Math.floor(index);
@@ -23,8 +24,28 @@ function computePercentile(arr, p) {
   return sorted[lower] * (1 - weight) + sorted[upper] * weight;
 }
 
+const CATEGORY_DISPLAY_NAMES = {
+  direct: 'Direct',
+  paraphrased: 'Paraphrased',
+  synonym: 'Synonyms',
+  hard: 'Deliberately Hard'
+};
+
+async function safeGenerateEmbedding(text, options, retries = 3) {
+  for (let attempt = 1; attempt <= retries; attempt++) {
+    try {
+      return await generateEmbedding(text, options);
+    } catch (err) {
+      if (attempt === retries) throw err;
+      const waitTime = attempt * 2000;
+      console.warn(`[Eval] Embedding call attempt ${attempt} failed: ${err.message}. Retrying in ${waitTime}ms...`);
+      await new Promise((r) => setTimeout(r, waitTime));
+    }
+  }
+}
+
 async function runRagEvaluation() {
-  console.log('=== Step 5: RAG Evaluation (MongoDB $text + Gemini) ===');
+  console.log('=== Step 5: Comparative Retrieval Evaluation (Text vs Vector vs Hybrid) ===');
   console.log('NOTE: Corpus is 100% synthetic (15 support articles, 30 fixed questions).');
 
   // Load ground truth
@@ -35,7 +56,7 @@ async function runRagEvaluation() {
 
   // Create isolated evaluation workspace
   const evalWs = await Workspace.create({
-    name: 'RAG Synthetic Evaluation Workspace',
+    name: 'RAG Synthetic Comparative Evaluation Workspace',
     publicKey: `pk_rag_eval_${Date.now()}`,
     joinCode: 'RAGEVL',
     owner: new mongoose.Types.ObjectId()
@@ -43,7 +64,7 @@ async function runRagEvaluation() {
 
   console.log(`Created evaluation workspace: ${evalWs._id}`);
 
-  // Map from ground truth article id to created Article document
+  // 1. Seed articles into MongoDB
   const articleDocMap = new Map();
   for (const art of groundTruth.articles) {
     const doc = await Article.create({
@@ -56,121 +77,258 @@ async function runRagEvaluation() {
 
   // Ensure text index is fully synced and built
   await Article.syncIndexes();
-  console.log(`Seeded ${articleDocMap.size} synthetic articles and synced text index.`);
+  console.log(`Seeded ${articleDocMap.size} synthetic articles and synced MongoDB $text index.`);
 
-  // --- PART 1: MongoDB $text Retrieval Evaluation ---
-  console.log('\n--- Evaluating MongoDB $text Search (Top-1 & Top-3 Hit Rates) ---');
-
-  // 1 Warm-up run over all 30 questions
-  console.log('Running 1 warm-up run over all 30 questions...');
-  for (const q of groundTruth.questions) {
-    await findRelevantArticles(evalWs._id, q.query, 3);
-  }
-
-  // 5 Measured runs over all 30 questions
-  const MEASURED_RUNS = 5;
-  const retrievalLatencies = [];
-  const questionStats = new Map();
-
-  for (const q of groundTruth.questions) {
-    questionStats.set(q.id, {
-      id: q.id,
-      query: q.query,
-      difficulty: q.difficulty,
-      expectedArticleId: q.expectedArticleId,
-      expectedTitle: groundTruth.articles.find((a) => a.id === q.expectedArticleId)?.title,
-      top1Hits: 0,
-      top3Hits: 0,
-      totalRuns: 0,
-      lastRetrieved: []
+  // 2. Pre-compute all article embeddings BEFORE timing starts
+  console.log('\n--- Pre-computing Article Embeddings (TaskType: RETRIEVAL_DOCUMENT) ---');
+  let artCount = 0;
+  for (const [artId, doc] of articleDocMap.entries()) {
+    artCount++;
+    process.stdout.write(`Embedding article [${artCount}/${articleDocMap.size}] "${doc.title.slice(0, 30)}..." `);
+    const t0 = performance.now();
+    const embedRes = await safeGenerateEmbedding(`${doc.title}\n\n${doc.content}`, {
+      taskType: 'RETRIEVAL_DOCUMENT',
+      title: doc.title
     });
+    const dur = performance.now() - t0;
+    doc.embedding = embedRes.values;
+    doc.embeddingModel = embedRes.model;
+    await doc.save();
+    console.log(`(${dur.toFixed(0)} ms)`);
+    await new Promise((r) => setTimeout(r, 250)); // Pacing to prevent 429
   }
+  console.log('All 15 article embeddings successfully generated and stored on Article documents.');
 
-  let totalTop1Hits = 0;
-  let totalTop3Hits = 0;
-  let totalRetrievalEvaluations = 0;
+  // 3. Pre-compute query embeddings and measure query-embedding latency per question
+  console.log('\n--- Pre-computing Query Embeddings (TaskType: RETRIEVAL_QUERY) ---');
+  const queryEmbeddingsMap = new Map(); // qId -> { values, latencyMs }
+  const queryLatencyByCategory = {
+    direct: [],
+    paraphrased: [],
+    synonym: [],
+    hard: []
+  };
 
-  for (let run = 1; run <= MEASURED_RUNS; run++) {
+  let qCount = 0;
+  for (const q of groundTruth.questions) {
+    qCount++;
+    process.stdout.write(`Embedding query [${qCount}/${groundTruth.questions.length}] (${q.difficulty}) "${q.query.slice(0, 35)}..." `);
+    const t0 = performance.now();
+    const qEmbedRes = await safeGenerateEmbedding(q.query, { taskType: 'RETRIEVAL_QUERY' });
+    const dur = performance.now() - t0;
+    queryEmbeddingsMap.set(q.id, {
+      values: qEmbedRes.values,
+      latencyMs: dur
+    });
+    if (queryLatencyByCategory[q.difficulty]) {
+      queryLatencyByCategory[q.difficulty].push(dur);
+    }
+    console.log(`(${dur.toFixed(0)} ms)`);
+    await new Promise((r) => setTimeout(r, 250)); // Pacing to prevent 429
+  }
+  console.log('All 30 query embeddings pre-computed and query latencies captured.');
+
+  // Pre-calculate query embedding latency statistics per category
+  const queryEmbeddingStatsByCategory = {};
+  for (const [cat, latencies] of Object.entries(queryLatencyByCategory)) {
+    queryEmbeddingStatsByCategory[cat] = {
+      count: latencies.length,
+      p50: Number(computePercentile(latencies, 50).toFixed(2)),
+      p95: Number(computePercentile(latencies, 95).toFixed(2)),
+      mean: Number((latencies.reduce((a, b) => a + b, 0) / latencies.length).toFixed(2))
+    };
+  }
+  const allQueryLatencies = Object.values(queryLatencyByCategory).flat();
+  const overallQueryEmbeddingStats = {
+    count: allQueryLatencies.length,
+    p50: Number(computePercentile(allQueryLatencies, 50).toFixed(2)),
+    p95: Number(computePercentile(allQueryLatencies, 95).toFixed(2)),
+    mean: Number((allQueryLatencies.reduce((a, b) => a + b, 0) / allQueryLatencies.length).toFixed(2))
+  };
+
+  // 4. Run Comparative Retrieval Evaluation across all three modes
+  const MODES = ['text', 'vector', 'hybrid'];
+  const MEASURED_RUNS = 5;
+  const modeResults = {};
+
+  for (const mode of MODES) {
+    console.log(`\n======================================================`);
+    console.log(`Evaluating Retrieval Mode: ${mode.toUpperCase()}`);
+    console.log(`======================================================`);
+
+    // 1 Warm-up run over all 30 questions
+    console.log(`Running 1 warm-up run for mode '${mode}'...`);
     for (const q of groundTruth.questions) {
-      const expectedDoc = articleDocMap.get(q.expectedArticleId);
-      const expectedDocIdStr = expectedDoc._id.toString();
+      const qEmbedding = queryEmbeddingsMap.get(q.id)?.values;
+      await findRelevantArticles(evalWs._id, q.query, 3, {
+        mode,
+        queryEmbedding: qEmbedding
+      });
+    }
 
-      const t0 = performance.now();
-      const articles = await findRelevantArticles(evalWs._id, q.query, 3);
-      const t1 = performance.now();
-      const latencyMs = t1 - t0;
+    // 5 Measured runs over all 30 questions
+    const searchLatencies = [];
+    const searchLatenciesByCategory = {
+      direct: [],
+      paraphrased: [],
+      synonym: [],
+      hard: []
+    };
+    const questionStats = new Map();
 
-      retrievalLatencies.push(latencyMs);
-      totalRetrievalEvaluations++;
+    for (const q of groundTruth.questions) {
+      questionStats.set(q.id, {
+        id: q.id,
+        query: q.query,
+        difficulty: q.difficulty,
+        expectedArticleId: q.expectedArticleId,
+        expectedTitle: groundTruth.articles.find((a) => a.id === q.expectedArticleId)?.title,
+        top1Hits: 0,
+        top3Hits: 0,
+        totalRuns: 0,
+        lastRetrieved: []
+      });
+    }
 
-      const isTop1 = articles.length > 0 && articles[0]._id.toString() === expectedDocIdStr;
-      const isTop3 = articles.some((a) => a._id.toString() === expectedDocIdStr);
+    let totalTop1Hits = 0;
+    let totalTop3Hits = 0;
+    let totalEvaluations = 0;
 
-      if (isTop1) totalTop1Hits++;
-      if (isTop3) totalTop3Hits++;
+    for (let run = 1; run <= MEASURED_RUNS; run++) {
+      for (const q of groundTruth.questions) {
+        const expectedDoc = articleDocMap.get(q.expectedArticleId);
+        const expectedDocIdStr = expectedDoc._id.toString();
+        const qEmbedding = queryEmbeddingsMap.get(q.id)?.values;
 
-      const stat = questionStats.get(q.id);
-      stat.totalRuns++;
-      if (isTop1) stat.top1Hits++;
-      if (isTop3) stat.top3Hits++;
-      if (run === MEASURED_RUNS) {
-        stat.lastRetrieved = articles.map((a, idx) => ({
-          rank: idx + 1,
-          title: a.title,
-          isMatch: a._id.toString() === expectedDocIdStr
-        }));
+        // Measure pure search latency (articles and query embeddings are already ready)
+        const t0 = performance.now();
+        const articles = await findRelevantArticles(evalWs._id, q.query, 3, {
+          mode,
+          queryEmbedding: qEmbedding
+        });
+        const t1 = performance.now();
+        const latencyMs = t1 - t0;
+
+        searchLatencies.push(latencyMs);
+        if (searchLatenciesByCategory[q.difficulty]) {
+          searchLatenciesByCategory[q.difficulty].push(latencyMs);
+        }
+        totalEvaluations++;
+
+        const isTop1 = articles.length > 0 && articles[0]._id.toString() === expectedDocIdStr;
+        const isTop3 = articles.some((a) => a._id.toString() === expectedDocIdStr);
+
+        if (isTop1) totalTop1Hits++;
+        if (isTop3) totalTop3Hits++;
+
+        const stat = questionStats.get(q.id);
+        stat.totalRuns++;
+        if (isTop1) stat.top1Hits++;
+        if (isTop3) stat.top3Hits++;
+        if (run === MEASURED_RUNS) {
+          stat.lastRetrieved = articles.map((a, idx) => ({
+            rank: idx + 1,
+            title: a.title,
+            isMatch: a._id.toString() === expectedDocIdStr
+          }));
+        }
       }
     }
-  }
 
-  const overallTop1Rate = (totalTop1Hits / totalRetrievalEvaluations) * 100;
-  const overallTop3Rate = (totalTop3Hits / totalRetrievalEvaluations) * 100;
+    const overallTop1Rate = (totalTop1Hits / totalEvaluations) * 100;
+    const overallTop3Rate = (totalTop3Hits / totalEvaluations) * 100;
 
-  // Breakdown by difficulty
-  const difficultyBreakdown = {};
-  for (const stat of questionStats.values()) {
-    const diff = stat.difficulty;
-    if (!difficultyBreakdown[diff]) {
-      difficultyBreakdown[diff] = { count: 0, top1Hits: 0, top3Hits: 0, totalEvals: 0 };
+    // Breakdown by category
+    const categoryBreakdown = {};
+    for (const [diffKey, latList] of Object.entries(searchLatenciesByCategory)) {
+      const questionsInCat = groundTruth.questions.filter((q) => q.difficulty === diffKey);
+      let catTop1 = 0;
+      let catTop3 = 0;
+      let catTotal = 0;
+
+      for (const q of questionsInCat) {
+        const s = questionStats.get(q.id);
+        catTop1 += s.top1Hits;
+        catTop3 += s.top3Hits;
+        catTotal += s.totalRuns;
+      }
+
+      categoryBreakdown[diffKey] = {
+        name: CATEGORY_DISPLAY_NAMES[diffKey] || diffKey,
+        questionCount: questionsInCat.length,
+        evaluations: catTotal,
+        top1Hits: catTop1,
+        top3Hits: catTop3,
+        top1Rate: Number(((catTop1 / catTotal) * 100).toFixed(1)),
+        top3Rate: Number(((catTop3 / catTotal) * 100).toFixed(1)),
+        searchLatencyMs: {
+          p50: Number(computePercentile(latList, 50).toFixed(2)),
+          p95: Number(computePercentile(latList, 95).toFixed(2)),
+          mean: Number((latList.reduce((a, b) => a + b, 0) / latList.length).toFixed(2))
+        },
+        queryEmbeddingLatencyMs: mode === 'text'
+          ? null
+          : queryEmbeddingStatsByCategory[diffKey]
+      };
     }
-    difficultyBreakdown[diff].count++;
-    difficultyBreakdown[diff].top1Hits += stat.top1Hits;
-    difficultyBreakdown[diff].top3Hits += stat.top3Hits;
-    difficultyBreakdown[diff].totalEvals += stat.totalRuns;
-  }
 
-  for (const [diff, data] of Object.entries(difficultyBreakdown)) {
-    data.top1Percentage = ((data.top1Hits / data.totalEvals) * 100).toFixed(1);
-    data.top3Percentage = ((data.top3Hits / data.totalEvals) * 100).toFixed(1);
-  }
+    const overallSearchP50 = computePercentile(searchLatencies, 50);
+    const overallSearchP95 = computePercentile(searchLatencies, 95);
+    const overallSearchP99 = computePercentile(searchLatencies, 99);
 
-  const retrievalP50 = computePercentile(retrievalLatencies, 50);
-  const retrievalP95 = computePercentile(retrievalLatencies, 95);
-  const retrievalP99 = computePercentile(retrievalLatencies, 99);
+    // Identify missed / imperfect questions
+    const failedQuestions = [];
+    for (const stat of questionStats.values()) {
+      if (stat.top1Hits < stat.totalRuns || stat.top3Hits < stat.totalRuns) {
+        failedQuestions.push({
+          id: stat.id,
+          query: stat.query,
+          category: CATEGORY_DISPLAY_NAMES[stat.difficulty] || stat.difficulty,
+          expectedArticle: stat.expectedTitle,
+          top1HitRate: `${((stat.top1Hits / stat.totalRuns) * 100).toFixed(0)}%`,
+          top3HitRate: `${((stat.top3Hits / stat.totalRuns) * 100).toFixed(0)}%`,
+          retrieved: stat.lastRetrieved.map((r) => `[Rank ${r.rank}] ${r.title} (${r.isMatch ? 'MATCH' : 'MISMATCH'})`)
+        });
+      }
+    }
 
-  console.log(`\nRetrieval Evaluation Results (n = ${totalRetrievalEvaluations} queries over 5 runs):`);
-  console.log(`  Top-1 Hit Rate: ${overallTop1Rate.toFixed(1)}% (${totalTop1Hits}/${totalRetrievalEvaluations})`);
-  console.log(`  Top-3 Hit Rate: ${overallTop3Rate.toFixed(1)}% (${totalTop3Hits}/${totalRetrievalEvaluations})`);
-  console.log(`  Retrieval Latency (ms): Median=${retrievalP50.toFixed(2)}ms, p95=${retrievalP95.toFixed(2)}ms, p99=${retrievalP99.toFixed(2)}ms`);
+    modeResults[mode] = {
+      mode,
+      overallTop1Rate: Number(overallTop1Rate.toFixed(1)),
+      overallTop3Rate: Number(overallTop3Rate.toFixed(1)),
+      totalTop1Hits,
+      totalTop3Hits,
+      totalEvaluations,
+      searchLatencyMs: {
+        p50: Number(overallSearchP50.toFixed(2)),
+        p95: Number(overallSearchP95.toFixed(2)),
+        p99: Number(overallSearchP99.toFixed(2))
+      },
+      queryEmbeddingLatencyMs: mode === 'text' ? null : overallQueryEmbeddingStats,
+      categoryBreakdown,
+      failedQuestions,
+      questionStats: Array.from(questionStats.values())
+    };
 
-  console.log('\nHit Rate Breakdown by Difficulty:');
-  for (const [diff, data] of Object.entries(difficultyBreakdown)) {
-    console.log(`  - ${diff.toUpperCase()} (n=${data.count}): Top-1=${data.top1Percentage}%, Top-3=${data.top3Percentage}%`);
+    console.log(`Results for ${mode.toUpperCase()} (n = ${totalEvaluations} evaluations over 5 runs):`);
+    console.log(`  Overall Top-1: ${overallTop1Rate.toFixed(1)}% | Overall Top-3: ${overallTop3Rate.toFixed(1)}%`);
+    console.log(`  Search Latency: p50 = ${overallSearchP50.toFixed(2)} ms | p95 = ${overallSearchP95.toFixed(2)} ms`);
+    if (mode !== 'text') {
+      console.log(`  Query Embedding Latency: p50 = ${overallQueryEmbeddingStats.p50} ms | p95 = ${overallQueryEmbeddingStats.p95} ms`);
+    }
+    console.log(`  Failed / Imperfect Questions: ${failedQuestions.length} of 30`);
   }
 
   // --- PART 2: Gemini & End-to-End Latency Evaluation ---
   console.log('\n--- Evaluating Gemini & Total End-to-End Latency ---');
   console.log(`Gemini API configured model: ${env.GEMINI_MODEL}`);
 
-  // Test question for end-to-end RAG latency
   const sampleQuestion = groundTruth.questions.find((q) => q.id === 'q05'); // Refund policy query
-  const sampleArticles = await findRelevantArticles(evalWs._id, sampleQuestion.query, 3);
-
+  const sampleArticles = await findRelevantArticles(evalWs._id, sampleQuestion.query, 3, { mode: 'text' });
   const sampleMessages = [
     { senderType: 'customer', senderName: 'Alice', text: sampleQuestion.query }
   ];
 
-  // 1 Warm-up run for Gemini
   console.log('Running 1 warm-up run for Gemini API...');
   const warmupT0 = performance.now();
   await suggestReply({
@@ -182,21 +340,17 @@ async function runRagEvaluation() {
   console.log(`Warm-up run completed in ${warmupMs.toFixed(2)} ms. Waiting 4s to prevent rate limiting...`);
   await new Promise((r) => setTimeout(r, 4000));
 
-  // 5 Measured runs for Gemini
   const geminiLatencies = [];
   const endToEndLatencies = [];
   const geminiOutputs = [];
 
   for (let i = 1; i <= 5; i++) {
     console.log(`Executing measured Gemini run ${i}/5...`);
-
-    // Measure retrieval time for this run
     const rStart = performance.now();
-    const retrieved = await findRelevantArticles(evalWs._id, sampleQuestion.query, 3);
+    const retrieved = await findRelevantArticles(evalWs._id, sampleQuestion.query, 3, { mode: 'text' });
     const rEnd = performance.now();
     const retLatency = rEnd - rStart;
 
-    // Measure Gemini generation time
     const gStart = performance.now();
     const suggestion = await suggestReply({
       conversation: { _id: new mongoose.Types.ObjectId() },
@@ -214,65 +368,31 @@ async function runRagEvaluation() {
     console.log(`  Run ${i}: Retrieval=${retLatency.toFixed(2)}ms, Gemini=${gemLatency.toFixed(2)}ms, Total=${totalLatency.toFixed(2)}ms`);
 
     if (i < 5) {
-      await new Promise((r) => setTimeout(r, 4500)); // Respect Google AI Studio rate limits
+      await new Promise((r) => setTimeout(r, 4500));
     }
   }
 
   const geminiP50 = computePercentile(geminiLatencies, 50);
   const geminiP95 = computePercentile(geminiLatencies, 95);
-
   const totalP50 = computePercentile(endToEndLatencies, 50);
   const totalP95 = computePercentile(endToEndLatencies, 95);
 
-  console.log(`\nGemini API Latency (5 runs): Median=${geminiP50.toFixed(2)}ms, p95=${geminiP95.toFixed(2)}ms`);
-  console.log(`Total End-to-End Latency (5 runs): Median=${totalP50.toFixed(2)}ms, p95=${totalP95.toFixed(2)}ms`);
-
-  // Identify weak spots / failure cases in retrieval
-  const failureCases = [];
-  for (const stat of questionStats.values()) {
-    if (stat.top3Hits < stat.totalRuns) {
-      failureCases.push({
-        id: stat.id,
-        query: stat.query,
-        difficulty: stat.difficulty,
-        expectedArticle: stat.expectedTitle,
-        top1HitRate: `${((stat.top1Hits / stat.totalRuns) * 100).toFixed(0)}%`,
-        top3HitRate: `${((stat.top3Hits / stat.totalRuns) * 100).toFixed(0)}%`,
-        retrievedArticles: stat.lastRetrieved.map((r) => `[Rank ${r.rank}] ${r.title} (match=${r.isMatch})`),
-        likelyCause:
-          stat.difficulty === 'hard'
-            ? 'Deliberate vocabulary mismatch; MongoDB text search relies on Porter stemming and lexical exact matching without dense semantic vector embeddings.'
-            : 'Synonym divergence where query keywords lack overlapping token stems with article title/content.'
-      });
-    }
-  }
-
-  console.log(`\nIdentified ${failureCases.length} retrieval failure/degradation cases out of 30 questions.`);
-
-  // Clean up
+  // Clean up database entities
   await Workspace.deleteMany({ _id: evalWs._id });
   await Article.deleteMany({ workspace: evalWs._id });
   await mongoose.disconnect();
 
-  const resultsData = {
+  const finalOutputData = {
     testDate: new Date().toISOString(),
     corpus: {
       type: 'synthetic',
       articleCount: groundTruth.articles.length,
       questionCount: groundTruth.questions.length,
       runsPerQuestion: MEASURED_RUNS,
-      totalRetrievalEvaluations
+      totalEvaluationsPerMode: groundTruth.questions.length * MEASURED_RUNS
     },
-    retrievalMetrics: {
-      overallTop1HitRate: Number(overallTop1Rate.toFixed(1)),
-      overallTop3HitRate: Number(overallTop3Rate.toFixed(1)),
-      latencyMs: {
-        median: Number(retrievalP50.toFixed(2)),
-        p95: Number(retrievalP95.toFixed(2)),
-        p99: Number(retrievalP99.toFixed(2))
-      },
-      difficultyBreakdown
-    },
+    embeddingModel: env.EMBEDDING_MODEL,
+    modes: modeResults,
     geminiMetrics: {
       model: env.GEMINI_MODEL,
       measuredRuns: 5,
@@ -287,9 +407,7 @@ async function runRagEvaluation() {
         samples: endToEndLatencies.map((l) => Number(l.toFixed(2)))
       },
       sampleSuggestion: geminiOutputs[0]
-    },
-    failureCases,
-    rawQuestionResults: Array.from(questionStats.values())
+    }
   };
 
   const resultsDir = path.resolve(__dirname, 'results');
@@ -297,49 +415,70 @@ async function runRagEvaluation() {
     fs.mkdirSync(resultsDir, { recursive: true });
   }
 
-  fs.writeFileSync(path.join(resultsDir, 'rag.json'), JSON.stringify(resultsData, null, 2), 'utf-8');
+  fs.writeFileSync(path.join(resultsDir, 'rag.json'), JSON.stringify(finalOutputData, null, 2), 'utf-8');
 
-  let textReport = `=== Step 5: RAG Evaluation Report ===
-Date: ${resultsData.testDate}
-Corpus: Synthetic support knowledge base (15 articles, 30 fixed questions, 5 hard)
-Retrieval Engine: MongoDB 8.3.7 $text index on { title: 'text', content: 'text' }
-LLM Engine: Google Gemini API (${env.GEMINI_MODEL})
+  // Generate Human-Readable Text Report
+  let textReport = `=== Step 5: Comparative Retrieval Evaluation Report ===
+Date: ${finalOutputData.testDate}
+Corpus: Synthetic knowledge base (15 articles, 30 fixed test questions)
+Embedding Model: ${env.EMBEDDING_MODEL} (3,072 dims, L2 normalized)
+LLM Engine: Google Gemini (${env.GEMINI_MODEL})
 
-1. Retrieval Accuracy (n = ${totalRetrievalEvaluations} across 5 measured runs):
-   - Top-1 Hit Rate: ${overallTop1Rate.toFixed(1)}% (${totalTop1Hits} / ${totalRetrievalEvaluations})
-   - Top-3 Hit Rate: ${overallTop3Rate.toFixed(1)}% (${totalTop3Hits} / ${totalRetrievalEvaluations})
+========================================================================================
+COMPARATIVE RETRIEVAL SUMMARY TABLE (n = 150 evaluations per mode, 5 runs x 30 questions)
+========================================================================================
+Mode     | Top-1 Acc | Top-3 Acc | Search p50 | Search p95 | Query Embed p50 | Query Embed p95
+---------+-----------+-----------+------------+------------+-----------------+----------------
+Text     | ${String(modeResults.text.overallTop1Rate).padStart(5)}%    | ${String(modeResults.text.overallTop3Rate).padStart(5)}%    | ${String(modeResults.text.searchLatencyMs.p50.toFixed(2)).padStart(7)} ms | ${String(modeResults.text.searchLatencyMs.p95.toFixed(2)).padStart(7)} ms | N/A             | N/A
+Vector   | ${String(modeResults.vector.overallTop1Rate).padStart(5)}%    | ${String(modeResults.vector.overallTop3Rate).padStart(5)}%    | ${String(modeResults.vector.searchLatencyMs.p50.toFixed(2)).padStart(7)} ms | ${String(modeResults.vector.searchLatencyMs.p95.toFixed(2)).padStart(7)} ms | ${String(overallQueryEmbeddingStats.p50.toFixed(2)).padStart(11)} ms | ${String(overallQueryEmbeddingStats.p95.toFixed(2)).padStart(11)} ms
+Hybrid   | ${String(modeResults.hybrid.overallTop1Rate).padStart(5)}%    | ${String(modeResults.hybrid.overallTop3Rate).padStart(5)}%    | ${String(modeResults.hybrid.searchLatencyMs.p50.toFixed(2)).padStart(7)} ms | ${String(modeResults.hybrid.searchLatencyMs.p95.toFixed(2)).padStart(7)} ms | ${String(overallQueryEmbeddingStats.p50.toFixed(2)).padStart(11)} ms | ${String(overallQueryEmbeddingStats.p95.toFixed(2)).padStart(11)} ms
+========================================================================================
 
-   Accuracy by Difficulty:
-   - Direct questions: Top-1 = ${difficultyBreakdown.direct?.top1Percentage}%, Top-3 = ${difficultyBreakdown.direct?.top3Percentage}% (n = ${difficultyBreakdown.direct?.count})
-   - Paraphrased: Top-1 = ${difficultyBreakdown.paraphrased?.top1Percentage}%, Top-3 = ${difficultyBreakdown.paraphrased?.top3Percentage}% (n = ${difficultyBreakdown.paraphrased?.count})
-   - Synonyms: Top-1 = ${difficultyBreakdown.synonym?.top1Percentage}%, Top-3 = ${difficultyBreakdown.synonym?.top3Percentage}% (n = ${difficultyBreakdown.synonym?.count})
-   - Deliberately Hard: Top-1 = ${difficultyBreakdown.hard?.top1Percentage}%, Top-3 = ${difficultyBreakdown.hard?.top3Percentage}% (n = ${difficultyBreakdown.hard?.count})
-
-2. Timing & Latencies (1 warm-up, 5 measured runs):
-   - Retrieval Latency (MongoDB $text): Median = ${retrievalP50.toFixed(2)} ms | p95 = ${retrievalP95.toFixed(2)} ms | p99 = ${retrievalP99.toFixed(2)} ms (n = 150)
-   - Gemini Generation Latency: Median = ${geminiP50.toFixed(2)} ms | p95 = ${geminiP95.toFixed(2)} ms (n = 5)
-   - Total End-to-End Latency: Median = ${totalP50.toFixed(2)} ms | p95 = ${totalP95.toFixed(2)} ms (n = 5)
-
-3. Retrieval Failure Cases & Weak Spots Analysis:
+ACCURACY & LATENCY BREAKDOWN BY QUERY CATEGORY:
 `;
 
-  for (const fc of failureCases) {
-    textReport += `\n[${fc.id}] Query: "${fc.query}"\n`;
-    textReport += `  Category: ${fc.difficulty}\n`;
-    textReport += `  Expected: ${fc.expectedArticle}\n`;
-    textReport += `  Top-1 Hit Rate: ${fc.top1HitRate} | Top-3 Hit Rate: ${fc.top3HitRate}\n`;
-    textReport += `  Retrieved: ${fc.retrievedArticles.join(', ') || 'No articles retrieved'}\n`;
-    textReport += `  Root Cause: ${fc.likelyCause}\n`;
+  for (const catKey of ['direct', 'paraphrased', 'synonym', 'hard']) {
+    const catName = CATEGORY_DISPLAY_NAMES[catKey];
+    textReport += `\n--- Category: ${catName.toUpperCase()} (n = ${modeResults.text.categoryBreakdown[catKey].questionCount} questions, 5 runs) ---\n`;
+    textReport += `Mode     | Top-1 Acc | Top-3 Acc | Search p50 | Search p95 | Query Embed p50 | Query Embed p95\n`;
+    textReport += `---------+-----------+-----------+------------+------------+-----------------+----------------\n`;
+    for (const m of MODES) {
+      const cb = modeResults[m].categoryBreakdown[catKey];
+      const qeP50 = cb.queryEmbeddingLatencyMs ? `${cb.queryEmbeddingLatencyMs.p50.toFixed(2)} ms` : 'N/A';
+      const qeP95 = cb.queryEmbeddingLatencyMs ? `${cb.queryEmbeddingLatencyMs.p95.toFixed(2)} ms` : 'N/A';
+      textReport += `${m.padEnd(8)} | ${String(cb.top1Rate).padStart(5)}%    | ${String(cb.top3Rate).padStart(5)}%    | ${String(cb.searchLatencyMs.p50.toFixed(2)).padStart(7)} ms | ${String(cb.searchLatencyMs.p95.toFixed(2)).padStart(7)} ms | ${qeP50.padStart(15)} | ${qeP95.padStart(15)}\n`;
+    }
   }
 
-  fs.writeFileSync(path.join(resultsDir, 'rag.txt'), textReport, 'utf-8');
-  console.log('Saved raw results to eval/results/rag.json and eval/results/rag.txt');
+  textReport += `\n========================================================================================\nFAILED / IMPERFECT RETRIEVAL QUESTIONS BY MODE:\n========================================================================================\n`;
 
-  return resultsData;
+  for (const m of MODES) {
+    textReport += `\n[MODE: ${m.toUpperCase()}] - ${modeResults[m].failedQuestions.length} imperfect / failed questions:\n`;
+    if (modeResults[m].failedQuestions.length === 0) {
+      textReport += `  None! 100% Top-1 accuracy achieved.\n`;
+    } else {
+      for (const f of modeResults[m].failedQuestions) {
+        textReport += `  - Question ${f.id} (${f.category}): "${f.query}"\n`;
+        textReport += `    Expected: ${f.expectedArticle}\n`;
+        textReport += `    Top-1 Rate: ${f.top1HitRate} | Top-3 Rate: ${f.top3HitRate}\n`;
+        textReport += `    Retrieved: ${f.retrieved.join(', ')}\n`;
+      }
+    }
+  }
+
+  textReport += `\n========================================================================================
+GEMINI LLM GENERATION & END-TO-END TIMING:
+Gemini API Latency (5 runs): Median = ${geminiP50.toFixed(2)} ms | p95 = ${geminiP95.toFixed(2)} ms
+Total End-to-End Latency:    Median = ${totalP50.toFixed(2)} ms | p95 = ${totalP95.toFixed(2)} ms
+`;
+
+  fs.writeFileSync(path.join(resultsDir, 'rag.txt'), textReport, 'utf-8');
+  console.log('\nSaved comparative evaluation raw results to eval/results/rag.json and eval/results/rag.txt');
+
+  return finalOutputData;
 }
 
 runRagEvaluation().catch((err) => {
   console.error('RAG evaluation failed:', err);
   process.exit(1);
 });
-

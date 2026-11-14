@@ -1,29 +1,81 @@
-=== Step 5: RAG Evaluation Report ===
-Date: 2026-11-13T19:13:36.514Z
-Corpus: Synthetic support knowledge base (15 articles, 30 fixed questions, 5 hard)
-Retrieval Engine: MongoDB 8.3.7 $text index on { title: 'text', content: 'text' }
-LLM Engine: Google Gemini API (gemini-3.5-flash)
+=== Step 5: Comparative Retrieval Evaluation Report ===
+Date: 2026-11-14T14:48:34.125Z
+Corpus: Synthetic knowledge base (15 articles, 30 fixed test questions)
+Embedding Model: gemini-embedding-001 (3,072 dims, L2 normalized)
+LLM Engine: Google Gemini (gemini-3.5-flash)
 
-1. Retrieval Accuracy (n = 150 across 5 measured runs):
-   - Top-1 Hit Rate: 86.7% (130 / 150)
-   - Top-3 Hit Rate: 96.7% (145 / 150)
+========================================================================================
+COMPARATIVE RETRIEVAL SUMMARY TABLE (n = 150 evaluations per mode, 5 runs x 30 questions)
+========================================================================================
+Mode     | Top-1 Acc | Top-3 Acc | Search p50 | Search p95 | Query Embed p50 | Query Embed p95
+---------+-----------+-----------+------------+------------+-----------------+----------------
+Text     |  86.7%    |  96.7%    |    1.28 ms |    1.78 ms | N/A             | N/A
+Vector   |   100%    |   100%    |   40.72 ms |   47.38 ms |      460.34 ms |      471.07 ms
+Hybrid   |  96.7%    |   100%    |   40.92 ms |   49.77 ms |      460.34 ms |      471.07 ms
+========================================================================================
 
-   Accuracy by Difficulty:
-   - Direct questions: Top-1 = 100.0%, Top-3 = 100.0% (n = 10)
-   - Paraphrased: Top-1 = 87.5%, Top-3 = 100.0% (n = 8)
-   - Synonyms: Top-1 = 85.7%, Top-3 = 100.0% (n = 7)
-   - Deliberately Hard: Top-1 = 60.0%, Top-3 = 80.0% (n = 5)
+ACCURACY & LATENCY BREAKDOWN BY QUERY CATEGORY:
 
-2. Timing & Latencies (1 warm-up, 5 measured runs):
-   - Retrieval Latency (MongoDB $text): Median = 4.30 ms | p95 = 14.53 ms | p99 = 25.21 ms (n = 150)
-   - Gemini Generation Latency: Median = 4171.84 ms | p95 = 4588.62 ms (n = 5)
-   - Total End-to-End Latency: Median = 4181.44 ms | p95 = 4595.78 ms (n = 5)
+--- Category: DIRECT (n = 10 questions, 5 runs) ---
+Mode     | Top-1 Acc | Top-3 Acc | Search p50 | Search p95 | Query Embed p50 | Query Embed p95
+---------+-----------+-----------+------------+------------+-----------------+----------------
+text     |   100%    |   100%    |    1.31 ms |    1.64 ms |             N/A |             N/A
+vector   |   100%    |   100%    |   40.88 ms |   45.20 ms |       458.38 ms |       468.64 ms
+hybrid   |   100%    |   100%    |   40.89 ms |   46.27 ms |       458.38 ms |       468.64 ms
 
-3. Retrieval Failure Cases & Weak Spots Analysis:
+--- Category: PARAPHRASED (n = 8 questions, 5 runs) ---
+Mode     | Top-1 Acc | Top-3 Acc | Search p50 | Search p95 | Query Embed p50 | Query Embed p95
+---------+-----------+-----------+------------+------------+-----------------+----------------
+text     |  87.5%    |   100%    |    1.31 ms |    1.75 ms |             N/A |             N/A
+vector   |   100%    |   100%    |   40.52 ms |   44.90 ms |       465.21 ms |       475.32 ms
+hybrid   |   100%    |   100%    |   41.11 ms |   50.86 ms |       465.21 ms |       475.32 ms
 
-[q30] Query: "We are seeing 429 status codes on our automated reporting integration during nightly syncs."
-  Category: hard
-  Expected: API Rate Limits, Quotas and Webhook Retries
-  Top-1 Hit Rate: 0% | Top-3 Hit Rate: 0%
-  Retrieved: [Rank 1] Password Reset and Account Recovery (match=false), [Rank 2] Two-Factor Authentication Setup and Recovery (match=false), [Rank 3] Workspace Ownership Transfer and Reassignment (match=false)
-  Root Cause: Deliberate vocabulary mismatch; MongoDB text search relies on Porter stemming and lexical exact matching without dense semantic vector embeddings.
+--- Category: SYNONYMS (n = 7 questions, 5 runs) ---
+Mode     | Top-1 Acc | Top-3 Acc | Search p50 | Search p95 | Query Embed p50 | Query Embed p95
+---------+-----------+-----------+------------+------------+-----------------+----------------
+text     |  85.7%    |   100%    |    1.25 ms |    1.81 ms |             N/A |             N/A
+vector   |   100%    |   100%    |   40.72 ms |   49.80 ms |       461.07 ms |       466.28 ms
+hybrid   |  85.7%    |   100%    |   40.91 ms |   47.54 ms |       461.07 ms |       466.28 ms
+
+--- Category: DELIBERATELY HARD (n = 5 questions, 5 runs) ---
+Mode     | Top-1 Acc | Top-3 Acc | Search p50 | Search p95 | Query Embed p50 | Query Embed p95
+---------+-----------+-----------+------------+------------+-----------------+----------------
+text     |    60%    |    80%    |    1.27 ms |    1.91 ms |             N/A |             N/A
+vector   |   100%    |   100%    |   40.56 ms |   45.57 ms |       451.86 ms |       467.22 ms
+hybrid   |   100%    |   100%    |   40.88 ms |   50.93 ms |       451.86 ms |       467.22 ms
+
+========================================================================================
+FAILED / IMPERFECT RETRIEVAL QUESTIONS BY MODE:
+========================================================================================
+
+[MODE: TEXT] - 4 imperfect / failed questions:
+  - Question q06 (Synonyms): "Can I get a reimbursement for a monthly subscription charged yesterday without any activity?"
+    Expected: Refund Policy and Cancellation Windows
+    Top-1 Rate: 0% | Top-3 Rate: 100%
+    Retrieved: [Rank 1] Billing Cycles, Invoicing and Tax Details (MISMATCH), [Rank 2] Refund Policy and Cancellation Windows (MATCH), [Rank 3] Audit Logs, Activity Tracking and Security Events (MISMATCH)
+  - Question q09 (Paraphrased): "How do I add a new support agent to our workspace?"
+    Expected: User Roles, Permissions and Team Invitations
+    Top-1 Rate: 0% | Top-3 Rate: 100%
+    Retrieved: [Rank 1] File Attachment Limits, Quotas and Supported Formats (MISMATCH), [Rank 2] User Roles, Permissions and Team Invitations (MATCH), [Rank 3] Workspace Ownership Transfer and Reassignment (MISMATCH)
+  - Question q28 (Deliberately Hard): "Can I prevent team members from connecting from home or public networks?"
+    Expected: IP Whitelisting and Network Access Restrictions
+    Top-1 Rate: 0% | Top-3 Rate: 100%
+    Retrieved: [Rank 1] User Roles, Permissions and Team Invitations (MISMATCH), [Rank 2] Single Sign-On Configuration with SAML and Okta (MISMATCH), [Rank 3] IP Whitelisting and Network Access Restrictions (MATCH)
+  - Question q30 (Deliberately Hard): "We are seeing 429 status codes on our automated reporting integration during nightly syncs."
+    Expected: API Rate Limits, Quotas and Webhook Retries
+    Top-1 Rate: 0% | Top-3 Rate: 0%
+    Retrieved: [Rank 1] Password Reset and Account Recovery (MISMATCH), [Rank 2] Two-Factor Authentication Setup and Recovery (MISMATCH), [Rank 3] Workspace Ownership Transfer and Reassignment (MISMATCH)
+
+[MODE: VECTOR] - 0 imperfect / failed questions:
+  None! 100% Top-1 accuracy achieved.
+
+[MODE: HYBRID] - 1 imperfect / failed questions:
+  - Question q06 (Synonyms): "Can I get a reimbursement for a monthly subscription charged yesterday without any activity?"
+    Expected: Refund Policy and Cancellation Windows
+    Top-1 Rate: 0% | Top-3 Rate: 100%
+    Retrieved: [Rank 1] Billing Cycles, Invoicing and Tax Details (MISMATCH), [Rank 2] Refund Policy and Cancellation Windows (MATCH), [Rank 3] Audit Logs, Activity Tracking and Security Events (MISMATCH)
+
+========================================================================================
+GEMINI LLM GENERATION & END-TO-END TIMING:
+Gemini API Latency (5 runs): Median = 16480.48 ms | p95 = 17899.14 ms
+Total End-to-End Latency:    Median = 16484.29 ms | p95 = 17904.08 ms
