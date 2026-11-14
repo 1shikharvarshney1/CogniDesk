@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { Article } from '../models/Article.js';
 import { AppError } from '../utils/errors.js';
+import { generateEmbedding } from '../services/embeddingService.js';
 
 const articleSchema = z.object({
   title: z.string().min(1, 'Title is required').trim(),
@@ -30,10 +31,27 @@ export async function createArticle(req, res, next) {
     const { title, content } = articleSchema.parse(req.body);
     const workspaceId = req.user.workspace._id || req.user.workspace;
 
+    // Optional vector embedding generation
+    let embedding;
+    let embeddingModel;
+    try {
+      const embedRes = await generateEmbedding(`${title}\n\n${content}`, {
+        taskType: 'RETRIEVAL_DOCUMENT',
+        title
+      });
+      if (embedRes?.values) {
+        embedding = embedRes.values;
+        embeddingModel = embedRes.model;
+      }
+    } catch (embedErr) {
+      console.warn('[Article] Non-fatal: embedding generation failed on create:', embedErr.message);
+    }
+
     const article = await Article.create({
       workspace: workspaceId,
       title,
-      content
+      content,
+      ...(embedding ? { embedding, embeddingModel } : {})
     });
 
     return res.status(201).json(article);
@@ -63,6 +81,20 @@ export async function updateArticle(req, res, next) {
 
     article.title = title;
     article.content = content;
+
+    try {
+      const embedRes = await generateEmbedding(`${title}\n\n${content}`, {
+        taskType: 'RETRIEVAL_DOCUMENT',
+        title
+      });
+      if (embedRes?.values) {
+        article.embedding = embedRes.values;
+        article.embeddingModel = embedRes.model;
+      }
+    } catch (embedErr) {
+      console.warn('[Article] Non-fatal: embedding generation failed on update:', embedErr.message);
+    }
+
     await article.save();
 
     return res.json(article);

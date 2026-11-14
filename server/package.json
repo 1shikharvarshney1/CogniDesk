@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "start": "node src/index.js",
-    "dev": "nodemon src/index.js"
+    "dev": "nodemon src/index.js",
+    "embeddings:backfill": "node src/scripts/backfillEmbeddings.js"
   },
   "dependencies": {
     "@google/genai": "^0.2.0",
