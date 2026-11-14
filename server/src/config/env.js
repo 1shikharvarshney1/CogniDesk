@@ -24,8 +24,8 @@ export const env = {
   JWT_SECRET: process.env.JWT_SECRET || 'dev_insecure_secret_set_in_env_file',
   CLIENT_ORIGIN: process.env.CLIENT_ORIGIN || 'http://localhost:5173',
   GEMINI_API_KEY: (process.env.GEMINI_API_KEY || '').trim(),
-  GEMINI_MODEL: process.env.GEMINI_MODEL || 'gemini-2.5-flash',
-  GEMINI_FALLBACK_MODEL: process.env.GEMINI_FALLBACK_MODEL || 'gemini-2.0-flash',
+  GEMINI_MODEL: process.env.GEMINI_MODEL || 'gemini-3.5-flash',
+  GEMINI_FALLBACK_MODEL: process.env.GEMINI_FALLBACK_MODEL || 'gemini-3.1-flash-lite',
   AI_COOLDOWN_SECONDS: parseInt(process.env.AI_COOLDOWN_SECONDS || '5', 10),
   RETRIEVAL_MODE: ['text', 'vector', 'hybrid'].includes((process.env.RETRIEVAL_MODE || '').toLowerCase())
     ? process.env.RETRIEVAL_MODE.toLowerCase()
