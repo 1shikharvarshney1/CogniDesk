@@ -36,7 +36,7 @@ export function CustomerChat() {
   const typingTimeoutRef = useRef(null);
 
   // Storage key scoped to this workspace publicKey
-  const storageKey = `supportdesk_cust_${publicKey}`;
+  const storageKey = `cognidesk_cust_${publicKey}`;
 
   // 1. Fetch public workspace info
   useEffect(() => {
@@ -215,7 +215,7 @@ export function CustomerChat() {
   if (loadingWorkspace) {
     return (
       <div className="customer-chat-layout">
-        <div style={{ color: 'var(--text-muted)' }}>Loading support desk...</div>
+        <div style={{ color: 'var(--text-muted)' }}>Loading CogniDesk...</div>
       </div>
     );
   }

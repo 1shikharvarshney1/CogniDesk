@@ -14,8 +14,8 @@ export function Navbar() {
   return (
     <nav className="navbar" id="app-navbar">
       <NavLink to="/" className="navbar-brand">
-        <div className="logo-icon">SD</div>
-        <span>SupportDesk</span>
+        <div className="logo-icon">CD</div>
+        <span>CogniDesk</span>
       </NavLink>
 
       <div className="navbar-links">

@@ -14,10 +14,10 @@ async function bootstrap() {
     setupSocketIO(server);
 
     server.listen(env.PORT, () => {
-      console.log(`[SupportDesk Server] Running on http://localhost:${env.PORT}`);
+      console.log(`[CogniDesk Server] Running on http://localhost:${env.PORT}`);
     });
   } catch (err) {
-    console.error('[SupportDesk Server] Failed to start:', err.message);
+    console.error('[CogniDesk Server] Failed to start:', err.message);
     process.exit(1);
   }
 }

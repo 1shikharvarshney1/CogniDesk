@@ -46,7 +46,7 @@ export function Onboarding() {
   return (
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', padding: '20px' }}>
       <div className="card" style={{ width: '100%', maxWidth: '440px' }}>
-        <h2 className="card-title" style={{ textAlign: 'center' }}>Welcome to SupportDesk</h2>
+        <h2 className="card-title" style={{ textAlign: 'center' }}>Welcome to CogniDesk</h2>
         <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', textAlign: 'center', marginBottom: '20px' }}>
           To start responding to customers, set up or join a workspace.
         </p>

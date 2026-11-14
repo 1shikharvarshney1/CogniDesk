@@ -1,19 +1,20 @@
 const API_BASE = '/api';
 
 export function getToken() {
-  return sessionStorage.getItem('supportdesk_token');
+  return sessionStorage.getItem('cognidesk_token') || sessionStorage.getItem('supportdesk_token');
 }
 
 export function setToken(token) {
   if (token) {
-    sessionStorage.setItem('supportdesk_token', token);
+    sessionStorage.setItem('cognidesk_token', token);
   } else {
+    sessionStorage.removeItem('cognidesk_token');
     sessionStorage.removeItem('supportdesk_token');
   }
 }
 
 export function getStoredUser() {
-  const raw = sessionStorage.getItem('supportdesk_user');
+  const raw = sessionStorage.getItem('cognidesk_user') || sessionStorage.getItem('supportdesk_user');
   try {
     return raw ? JSON.parse(raw) : null;
   } catch {
@@ -23,8 +24,9 @@ export function getStoredUser() {
 
 export function setStoredUser(user) {
   if (user) {
-    sessionStorage.setItem('supportdesk_user', JSON.stringify(user));
+    sessionStorage.setItem('cognidesk_user', JSON.stringify(user));
   } else {
+    sessionStorage.removeItem('cognidesk_user');
     sessionStorage.removeItem('supportdesk_user');
   }
 }

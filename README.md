@@ -82,7 +82,7 @@ All metrics were freshly measured on a single shared 8 GB host (Windows 11, Inte
 ## Prerequisites
 
 - Node.js 20+
-- MongoDB running locally (`mongodb://127.0.0.1:27017/supportdesk`) or an Atlas URI
+- MongoDB running locally (`mongodb://127.0.0.1:27017/cognidesk`) or an Atlas URI
 
 ## Setup
 
@@ -106,7 +106,7 @@ npm run dev
 | Variable                | Default                                 | Description                                        |
 | ----------------------- | --------------------------------------- | -------------------------------------------------- |
 | `PORT`                  | `5000`                                  | Server port                                        |
-| `MONGODB_URI`           | `mongodb://127.0.0.1:27017/supportdesk` | MongoDB connection string                          |
+| `MONGODB_URI`           | `mongodb://127.0.0.1:27017/cognidesk`   | MongoDB connection string                          |
 | `JWT_SECRET`            | none (required)                         | Secret for signing agent tokens                    |
 | `CLIENT_ORIGIN`         | `http://localhost:5173`                 | Allowed CORS origin                                |
 | `GEMINI_API_KEY`        | empty (mock mode)                       | Google AI Studio key                               |

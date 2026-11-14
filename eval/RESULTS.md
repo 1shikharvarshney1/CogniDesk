@@ -15,7 +15,7 @@
 | **System Memory** | 8.00 GB (8,253,232 KB total visible memory) | Shared across all tiers |
 | **Node.js Version** | v24.21.0 | Native ES modules |
 | **npm Version** | 11.19.0 | Project package manager |
-| **Database** | MongoDB Server 8.3.7 | Local real service (`mongodb://127.0.0.1:27017/supportdesk`) |
+| **Database** | MongoDB Server 8.3.7 | Local real service (`mongodb://127.0.0.1:27017/cognidesk`) |
 | **Backend Server** | Node.js Express 4.21.2 + Socket.io 4.8.1 | Running locally on port 5000 |
 | **LLM Provider** | Google Gemini API via `@google/genai` | Primary: `gemini-3.5-flash`, Fallback: `gemini-3.1-flash-lite` |
 | **Resource Contention** | Shared single host | Server, MongoDB, and load generator share 8 GB RAM and 4 CPU cores |

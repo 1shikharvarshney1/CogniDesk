@@ -26,7 +26,7 @@ export function Inbox() {
         setConversations(list);
 
         // Restore selected conversation from sessionStorage if available
-        const savedId = sessionStorage.getItem('supportdesk_selected_conv');
+        const savedId = sessionStorage.getItem('cognidesk_selected_conv') || sessionStorage.getItem('supportdesk_selected_conv');
         const match = list.find((c) => c._id === savedId) || list[0];
         if (match) {
           handleSelectConversation(match);
@@ -129,7 +129,7 @@ export function Inbox() {
   const handleSelectConversation = (conv) => {
     if (!conv) return;
     setSelectedConv(conv);
-    sessionStorage.setItem('supportdesk_selected_conv', conv._id);
+    sessionStorage.setItem('cognidesk_selected_conv', conv._id);
     setIsCustomerTyping(false);
 
     // Call agent:open via socket if available

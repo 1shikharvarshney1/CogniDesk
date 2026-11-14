@@ -20,7 +20,7 @@ if (!process.env.JWT_SECRET && process.env.NODE_ENV === 'production') {
 
 export const env = {
   PORT: parseInt(process.env.PORT || '5000', 10),
-  MONGODB_URI: process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/supportdesk',
+  MONGODB_URI: process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/cognidesk',
   JWT_SECRET: process.env.JWT_SECRET || 'dev_insecure_secret_set_in_env_file',
   CLIENT_ORIGIN: process.env.CLIENT_ORIGIN || 'http://localhost:5173',
   GEMINI_API_KEY: (process.env.GEMINI_API_KEY || '').trim(),

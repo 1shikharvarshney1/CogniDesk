@@ -43,8 +43,8 @@ export function Login() {
       <div className="card" style={{ width: '100%', maxWidth: '400px' }}>
         <div style={{ textAlign: 'center', marginBottom: '24px' }}>
           <div className="navbar-brand" style={{ justifyContent: 'center', marginBottom: '8px' }}>
-            <div className="logo-icon">SD</div>
-            <span>SupportDesk</span>
+            <div className="logo-icon">CD</div>
+            <span>CogniDesk</span>
           </div>
           <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>
             {isRegister ? 'Create an agent account' : 'Sign in to your support workspace'}
