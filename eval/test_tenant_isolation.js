@@ -75,9 +75,10 @@ async function runTenantIsolationTests() {
     text: 'Confidential business data of Tenant Alpha'
   });
 
-  const dummyVecA = new Array(3072).fill(0);
+  const dim = env.EMBEDDING_PROVIDER === 'local' ? 384 : 3072;
+  const dummyVecA = new Array(dim).fill(0);
   dummyVecA[0] = 1.0;
-  const dummyVecB = new Array(3072).fill(0);
+  const dummyVecB = new Array(dim).fill(0);
   dummyVecB[1] = 1.0;
 
   const artA = await Article.create({
@@ -85,7 +86,8 @@ async function runTenantIsolationTests() {
     title: 'Alpha Secret Operating Manual',
     content: 'Internal procedures strictly for Workspace Alpha team members.',
     embedding: dummyVecA,
-    embeddingModel: 'gemini-embedding-001'
+    embeddingModel: env.EMBEDDING_MODEL,
+    embeddingDimension: dim
   });
 
   // 2. Seed Workspace B
@@ -118,7 +120,8 @@ async function runTenantIsolationTests() {
     title: 'Beta Public Documentation',
     content: 'Documentation for Workspace Beta.',
     embedding: dummyVecB,
-    embeddingModel: 'gemini-embedding-001'
+    embeddingModel: env.EMBEDDING_MODEL,
+    embeddingDimension: dim
   });
 
   const tokenA = createToken(userA._id);

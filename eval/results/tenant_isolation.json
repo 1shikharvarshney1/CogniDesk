@@ -1,5 +1,5 @@
 {
-  "testDate": "2026-11-14T14:41:33.083Z",
+  "testDate": "2026-11-17T23:06:37.433Z",
   "totalAttempts": 20,
   "blockedAttempts": 20,
   "unblockedCount": 0,
@@ -86,7 +86,7 @@
       "name": "Customer in Workspace B tries to hijack Workspace A session via visitorId",
       "category": "Socket",
       "blocked": true,
-      "details": "Isolated: Server generated new conversation (6af8731afa0eb1f3aedb3cf2) in Workspace B"
+      "details": "Isolated: Server generated new conversation (6afcddfb23d66efacff4f07b) in Workspace B"
     },
     {
       "name": "Customer emits message without valid started conversation session",
