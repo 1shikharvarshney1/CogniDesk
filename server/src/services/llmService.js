@@ -85,8 +85,8 @@ export async function generateJson({ systemInstruction, userPrompt }) {
     return await callModel(env.GEMINI_MODEL);
   } catch (err) {
     const status = err.status || err.statusCode || err.response?.status;
-    const isRecoverable = status === 429 || status === 503 || status === 404 ||
-      /429|503|404|resource_exhausted|unavailable|not found/i.test(err.message || '');
+    const isRecoverable = status === 429 || status === 503 || status === 404 || status === 408 ||
+      /429|503|404|408|timeout|timed out|resource_exhausted|unavailable|not found/i.test(err.message || '');
 
     if (isRecoverable && env.GEMINI_FALLBACK_MODEL && env.GEMINI_FALLBACK_MODEL !== env.GEMINI_MODEL) {
       console.warn(`[LLM] Primary model failed (${status || err.message}). Retrying with fallback model: ${env.GEMINI_FALLBACK_MODEL}`);

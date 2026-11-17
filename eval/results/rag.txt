@@ -1,7 +1,9 @@
 === Step 5: Comparative Retrieval Evaluation Report ===
-Date: 2026-11-14T14:48:34.125Z
+Date: 2026-11-17T23:11:45.126Z
 Corpus: Synthetic knowledge base (15 articles, 30 fixed test questions)
-Embedding Model: gemini-embedding-001 (3,072 dims, L2 normalized)
+Embedding Provider: local
+Embedding Model: all-MiniLM-L6-v2 (384 dims, L2 normalized)
+Model Load Time: 1.54 s
 LLM Engine: Google Gemini (gemini-3.5-flash)
 
 ========================================================================================
@@ -9,9 +11,9 @@ COMPARATIVE RETRIEVAL SUMMARY TABLE (n = 150 evaluations per mode, 5 runs x 30 q
 ========================================================================================
 Mode     | Top-1 Acc | Top-3 Acc | Search p50 | Search p95 | Query Embed p50 | Query Embed p95
 ---------+-----------+-----------+------------+------------+-----------------+----------------
-Text     |  86.7%    |  96.7%    |    1.28 ms |    1.78 ms | N/A             | N/A
-Vector   |   100%    |   100%    |   40.72 ms |   47.38 ms |      460.34 ms |      471.07 ms
-Hybrid   |  96.7%    |   100%    |   40.92 ms |   49.77 ms |      460.34 ms |      471.07 ms
+Text     |  86.7%    |  96.7%    |    2.69 ms |    4.58 ms | N/A             | N/A
+Vector   |  96.7%    |  96.7%    |   32.78 ms |   42.50 ms |       26.51 ms |       36.61 ms
+Hybrid   |  96.7%    |   100%    |   17.25 ms |   27.91 ms |       26.51 ms |       36.61 ms
 ========================================================================================
 
 ACCURACY & LATENCY BREAKDOWN BY QUERY CATEGORY:
@@ -19,30 +21,30 @@ ACCURACY & LATENCY BREAKDOWN BY QUERY CATEGORY:
 --- Category: DIRECT (n = 10 questions, 5 runs) ---
 Mode     | Top-1 Acc | Top-3 Acc | Search p50 | Search p95 | Query Embed p50 | Query Embed p95
 ---------+-----------+-----------+------------+------------+-----------------+----------------
-text     |   100%    |   100%    |    1.31 ms |    1.64 ms |             N/A |             N/A
-vector   |   100%    |   100%    |   40.88 ms |   45.20 ms |       458.38 ms |       468.64 ms
-hybrid   |   100%    |   100%    |   40.89 ms |   46.27 ms |       458.38 ms |       468.64 ms
+text     |   100%    |   100%    |    2.69 ms |    4.77 ms |             N/A |             N/A
+vector   |   100%    |   100%    |   22.20 ms |   40.66 ms |        27.95 ms |        35.62 ms
+hybrid   |   100%    |   100%    |   17.61 ms |   29.52 ms |        27.95 ms |        35.62 ms
 
 --- Category: PARAPHRASED (n = 8 questions, 5 runs) ---
 Mode     | Top-1 Acc | Top-3 Acc | Search p50 | Search p95 | Query Embed p50 | Query Embed p95
 ---------+-----------+-----------+------------+------------+-----------------+----------------
-text     |  87.5%    |   100%    |    1.31 ms |    1.75 ms |             N/A |             N/A
-vector   |   100%    |   100%    |   40.52 ms |   44.90 ms |       465.21 ms |       475.32 ms
-hybrid   |   100%    |   100%    |   41.11 ms |   50.86 ms |       465.21 ms |       475.32 ms
+text     |  87.5%    |   100%    |    2.76 ms |    4.37 ms |             N/A |             N/A
+vector   |   100%    |   100%    |   32.93 ms |   42.70 ms |        25.58 ms |        30.68 ms
+hybrid   |   100%    |   100%    |   17.43 ms |   29.41 ms |        25.58 ms |        30.68 ms
 
 --- Category: SYNONYMS (n = 7 questions, 5 runs) ---
 Mode     | Top-1 Acc | Top-3 Acc | Search p50 | Search p95 | Query Embed p50 | Query Embed p95
 ---------+-----------+-----------+------------+------------+-----------------+----------------
-text     |  85.7%    |   100%    |    1.25 ms |    1.81 ms |             N/A |             N/A
-vector   |   100%    |   100%    |   40.72 ms |   49.80 ms |       461.07 ms |       466.28 ms
-hybrid   |  85.7%    |   100%    |   40.91 ms |   47.54 ms |       461.07 ms |       466.28 ms
+text     |  85.7%    |   100%    |    2.73 ms |    4.02 ms |             N/A |             N/A
+vector   |   100%    |   100%    |   33.26 ms |   41.60 ms |        26.27 ms |        38.75 ms
+hybrid   |   100%    |   100%    |   17.00 ms |   26.42 ms |        26.27 ms |        38.75 ms
 
 --- Category: DELIBERATELY HARD (n = 5 questions, 5 runs) ---
 Mode     | Top-1 Acc | Top-3 Acc | Search p50 | Search p95 | Query Embed p50 | Query Embed p95
 ---------+-----------+-----------+------------+------------+-----------------+----------------
-text     |    60%    |    80%    |    1.27 ms |    1.91 ms |             N/A |             N/A
-vector   |   100%    |   100%    |   40.56 ms |   45.57 ms |       451.86 ms |       467.22 ms
-hybrid   |   100%    |   100%    |   40.88 ms |   50.93 ms |       451.86 ms |       467.22 ms
+text     |    60%    |    80%    |    2.55 ms |    5.24 ms |             N/A |             N/A
+vector   |    80%    |    80%    |   33.51 ms |   42.47 ms |        25.47 ms |        29.03 ms
+hybrid   |    80%    |   100%    |   16.85 ms |   21.30 ms |        25.47 ms |        29.03 ms
 
 ========================================================================================
 FAILED / IMPERFECT RETRIEVAL QUESTIONS BY MODE:
@@ -66,16 +68,19 @@ FAILED / IMPERFECT RETRIEVAL QUESTIONS BY MODE:
     Top-1 Rate: 0% | Top-3 Rate: 0%
     Retrieved: [Rank 1] Password Reset and Account Recovery (MISMATCH), [Rank 2] Two-Factor Authentication Setup and Recovery (MISMATCH), [Rank 3] Workspace Ownership Transfer and Reassignment (MISMATCH)
 
-[MODE: VECTOR] - 0 imperfect / failed questions:
-  None! 100% Top-1 accuracy achieved.
+[MODE: VECTOR] - 1 imperfect / failed questions:
+  - Question q30 (Deliberately Hard): "We are seeing 429 status codes on our automated reporting integration during nightly syncs."
+    Expected: API Rate Limits, Quotas and Webhook Retries
+    Top-1 Rate: 0% | Top-3 Rate: 0%
+    Retrieved: [Rank 1] Audit Logs, Activity Tracking and Security Events (MISMATCH), [Rank 2] Data Export, Retention Schedules and GDPR Compliance (MISMATCH), [Rank 3] Billing Cycles, Invoicing and Tax Details (MISMATCH)
 
 [MODE: HYBRID] - 1 imperfect / failed questions:
-  - Question q06 (Synonyms): "Can I get a reimbursement for a monthly subscription charged yesterday without any activity?"
-    Expected: Refund Policy and Cancellation Windows
+  - Question q28 (Deliberately Hard): "Can I prevent team members from connecting from home or public networks?"
+    Expected: IP Whitelisting and Network Access Restrictions
     Top-1 Rate: 0% | Top-3 Rate: 100%
-    Retrieved: [Rank 1] Billing Cycles, Invoicing and Tax Details (MISMATCH), [Rank 2] Refund Policy and Cancellation Windows (MATCH), [Rank 3] Audit Logs, Activity Tracking and Security Events (MISMATCH)
+    Retrieved: [Rank 1] User Roles, Permissions and Team Invitations (MISMATCH), [Rank 2] IP Whitelisting and Network Access Restrictions (MATCH), [Rank 3] Single Sign-On Configuration with SAML and Okta (MISMATCH)
 
 ========================================================================================
 GEMINI LLM GENERATION & END-TO-END TIMING:
-Gemini API Latency (5 runs): Median = 16480.48 ms | p95 = 17899.14 ms
-Total End-to-End Latency:    Median = 16484.29 ms | p95 = 17904.08 ms
+Gemini API Latency (5 runs): Median = 3153.03 ms | p95 = 9789.72 ms
+Total End-to-End Latency:    Median = 3161.52 ms | p95 = 9799.97 ms
