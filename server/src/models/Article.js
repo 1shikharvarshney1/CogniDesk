@@ -18,7 +18,7 @@ const articleSchema = new mongoose.Schema(
       required: true,
       maxlength: 4000
     },
-    // Optional dense vector embedding for semantic search (e.g. gemini-embedding-001)
+    // Optional dense vector embedding for semantic search (e.g. all-MiniLM-L6-v2, gemini-embedding-001)
     // select: false ensures normal queries don't transfer raw vector floats
     embedding: {
       type: [Number],

@@ -2,7 +2,7 @@
 
 An Intercom-style customer support desk. Customers chat through a shareable link, agents handle chats in a live inbox, and an AI assistant drafts replies grounded in the company's knowledge base.
 
-**Stack:** React 18 (Vite), Node.js, Express, Socket.io, MongoDB (Mongoose), Zod, Google Gemini.
+**Stack:** React 18 (Vite), Node.js, Express, Socket.io, MongoDB (Mongoose), Python FastAPI, Sentence Transformers, Zod, Google Gemini.
 
 ## Architecture
 
@@ -23,12 +23,17 @@ An Intercom-style customer support desk. Customers chat through a shareable link
                    |                    |
         +----------v---------+   +------v----------------+
         | Retrieval service  |   | LLM service           |
-        | MongoDB $text      |   | Gemini + fallback     |
-        | search per         |   | model, mock mode      |
-        | workspace          |   +-----------------------+
-        +----------+---------+
-                   |
-        +----------v---------+
+        | - MongoDB $text    |   | Gemini + fallback     |
+        | - Vector / Hybrid  |   | model, mock mode      |
+        +---+--------------+-+   +-----------------------+
+            |              |
+            |   +----------v------------------------+
+            |   | Python Embedding Service (FastAPI)|
+            |   | Sentence Transformers             |
+            |   | all-MiniLM-L6-v2 (384 dims, L2)   |
+            |   +-----------------------------------+
+            |
+        +---v----------------+
         |      MongoDB       |
         | Users, Workspaces, |
         | Conversations,     |
@@ -64,15 +69,18 @@ All metrics were freshly measured on a single shared 8 GB host (Windows 11, Inte
 
 | Mode | Engine / Strategy | Top-1 Accuracy | Top-3 Accuracy | Search Latency p50 | Search Latency p95 | Query Embed p50 | Query Embed p95 |
 | :--- | :--- | :---: | :---: | :---: | :---: | :---: | :---: |
-| **`text`** (default) | MongoDB 8.3.7 `$text` Index | **86.7%** (130/150) | **96.7%** (145/150) | **1.28 ms** | **1.78 ms** | *N/A* | *N/A* |
-| **`vector`** | Local Cosine (`gemini-embedding-001`) | **100.0%** (150/150) | **100.0%** (150/150) | **40.72 ms** | **47.38 ms** | **460.34 ms** | **471.07 ms** |
-| **`hybrid`** | Reciprocal Rank Fusion ($k=60$) | **96.7%** (145/150) | **100.0%** (150/150) | **40.92 ms** | **49.77 ms** | **460.34 ms** | **471.07 ms** |
+| **`text`** (default) | MongoDB 8.3.7 `$text` Index | **86.7%** (130/150) | **96.7%** (145/150) | **2.69 ms** | **4.58 ms** | *N/A* | *N/A* |
+| **`vector`** | Local Cosine (`all-MiniLM-L6-v2`, 384 dims) | **96.7%** (145/150) | **96.7%** (145/150) | **32.78 ms** | **42.50 ms** | **26.51 ms** | **36.61 ms** |
+| **`hybrid`** | Reciprocal Rank Fusion ($k=60$) | **96.7%** (145/150) | **100.0%** (150/150) | **17.25 ms** | **27.91 ms** | **26.51 ms** | **36.61 ms** |
+
+*(Historical Cloud Baseline for comparison: `gemini-embedding-001` (3,072 dims) achieved 100.0% vector Top-1, but required **460.34 ms** query embedding latency — ~17x slower than the local model.)*
 
 *Category-level findings:*
 - **Direct queries (n=10):** All three modes achieved 100.0% Top-1 accuracy.
 - **Paraphrased (n=8) & Synonyms (n=7):** Vector achieved 100.0% Top-1, whereas text mode dropped to 87.5% and 85.7% due to vocabulary divergence.
-- **Deliberately Hard (n=5):** Text mode achieved 60.0% Top-1 and 80.0% Top-3 (completely missing question `q30` on 429 status codes). Vector and Hybrid achieved 100.0% Top-1.
-- **End-to-End LLM Generation:** Google Gemini (`gemini-3.5-flash`) drafting latency averaged 16.48s median ($n = 5$).
+- **Deliberately Hard (n=5):** Text mode achieved 60.0% Top-1 and 80.0% Top-3 (completely missing question `q30` on 429 status codes). Vector achieved 80.0% Top-1. Hybrid achieved 80.0% Top-1 and **100.0% Top-3**.
+- **Query Embedding Latency:** Local open-source `all-MiniLM-L6-v2` generates query vectors in **26.51 ms p50** (~17x faster than cloud Gemini embeddings at 460.34 ms).
+- **End-to-End LLM Generation:** Google Gemini (`gemini-3.5-flash`) drafting latency averaged 16.48s median ($n = 5$, with 3.15s fallback on `gemini-3.1-flash-lite`).
 
 ### 3. Tenant Isolation & Validation
 - **Multi-Tenant Boundary Enforcement:** **20 / 20 (100.0%)** cross-workspace attack vectors blocked across REST APIs, conversation IDs, WebSocket rooms (`ws:<id>`, `conv:<id>`), and knowledge base retrieval scopes (text, vector, and hybrid).
@@ -82,6 +90,7 @@ All metrics were freshly measured on a single shared 8 GB host (Windows 11, Inte
 ## Prerequisites
 
 - Node.js 20+
+- Python 3.10+ (for local embeddings microservice)
 - MongoDB running locally (`mongodb://127.0.0.1:27017/cognidesk`) or an Atlas URI
 
 ## Setup
@@ -90,16 +99,22 @@ All metrics were freshly measured on a single shared 8 GB host (Windows 11, Inte
 git clone https://github.com/1shikharvarshney1/CogniDesk.git
 cd CogniDesk
 
+# Install Node dependencies across root, server, and client
 npm run install:all
+
+# Install Python dependencies for the embedding microservice
+pip install -r embedding-service/requirements.txt
 
 cp server/.env.example server/.env
 # Edit server/.env: set MONGODB_URI and JWT_SECRET, optionally GEMINI_API_KEY
 
+# Starts frontend (Vite), backend (Node Express), and embedding service (FastAPI) concurrently
 npm run dev
 ```
 
 - Client: http://localhost:5173
 - Server: http://localhost:5000
+- Embedding Service: http://localhost:8000
 
 ## Environment Variables
 
@@ -113,7 +128,9 @@ npm run dev
 | `GEMINI_MODEL`          | `gemini-3.5-flash`                      | Primary Gemini model for generation                |
 | `GEMINI_FALLBACK_MODEL` | `gemini-3.1-flash-lite`                 | Fallback generation model                          |
 | `RETRIEVAL_MODE`        | `text`                                  | Knowledge retrieval engine: `text`, `vector`, `hybrid` |
-| `EMBEDDING_MODEL`       | `gemini-embedding-001`                  | Gemini dense embedding model                      |
+| `EMBEDDING_PROVIDER`    | `local`                                 | Embedding provider: `local` (Sentence Transformers) or `gemini` |
+| `EMBEDDING_SERVICE_URL` | `http://127.0.0.1:8000`                 | Endpoint for local FastAPI embedding service       |
+| `EMBEDDING_MODEL`       | `all-MiniLM-L6-v2`                      | Embedding model (`all-MiniLM-L6-v2` 384 dims for local; `gemini-embedding-001` 3072 dims for gemini) |
 | `AI_COOLDOWN_SECONDS`   | `5`                                     | Cooldown between AI suggestions                    |
 
 ## Retrieval Modes
@@ -122,21 +139,21 @@ CogniDesk supports three retrieval strategies behind `RETRIEVAL_MODE`:
 
 1. **Text (`text`, default):**
    - Uses MongoDB's built-in `$text` inverted index with Porter stemming.
-   - **Pros:** Fast local execution (~1.3 ms median search latency), zero API calls or embedding overhead.
+   - **Pros:** Fast local execution (~2.7 ms median search latency), zero external service dependencies or embedding overhead.
    - **Cons:** Fails on queries with vocabulary divergence (e.g., "connecting from home" vs "IP whitelisting", or error codes like 429).
 2. **Vector (`vector`):**
-   - Embeds knowledge base articles with `gemini-embedding-001` (3,072 dimensions, L2 normalized).
-   - Generates a `RETRIEVAL_QUERY` embedding for the customer inquiry and computes cosine similarity in Node across all articles in the caller's workspace.
-   - **Pros:** High semantic recall (100% Top-1 accuracy on our 30-question benchmark), resolving paraphrasing and synonyms.
-   - **Cons:** Requires a Gemini API round-trip for query embedding (~460 ms median) and ~40 ms local similarity calculation.
+   - Embeds knowledge base articles with open-source Sentence Transformers `all-MiniLM-L6-v2` (384 dimensions, L2 normalized) served from the local FastAPI microservice (or cloud Gemini when `EMBEDDING_PROVIDER=gemini`).
+   - Generates a query vector in ~26.5 ms and computes cosine similarity in Node memory across all articles in the caller's workspace.
+   - **Pros:** High semantic recall (96.7% Top-1 accuracy on our 30-question benchmark), resolving paraphrasing and synonyms with zero cloud API costs and sub-30ms query latency.
+   - **Cons:** Compact 384-dimensional latent space may occasionally misprioritize isolated numeric codes without lexical context.
 3. **Hybrid (`hybrid`):**
    - Runs text search and vector search in parallel within the workspace.
    - Merges and re-ranks the candidates using Reciprocal Rank Fusion (RRF, $k=60$):
      $$\text{RRF\_Score}(d) = \sum_{m \in \{\text{text}, \text{vector}\}} \frac{1}{60 + \text{rank}_m(d)}$$
-   - Combines lexical precision for exact keywords with semantic resilience.
+   - Combines lexical precision for exact keywords with semantic resilience, achieving **100.0% Top-3 accuracy**.
 
-> **Tenant Isolation:** Vector and hybrid retrieval strictly filter candidates by `{ workspace: workspaceId }` before computing similarity, ensuring cross-tenant boundaries remain uncompromised.
-> **Graceful Fallback:** If `GEMINI_API_KEY` is unset or embedding generation fails, `vector` and `hybrid` automatically fall back to `$text` search.
+> **Tenant Isolation:** Vector and hybrid retrieval strictly filter candidates by `{ workspace: workspaceId }` in MongoDB before computing similarity, ensuring cross-tenant boundaries remain uncompromised.
+> **Graceful Fallback:** If the embedding microservice is offline or errors (or `GEMINI_API_KEY` is missing in Gemini mode), `vector` and `hybrid` automatically fall back to MongoDB `$text` search.
 
 ## Running Embeddings Backfill & Evaluations
 
@@ -179,7 +196,7 @@ Each browser tab keeps its own session. Use one normal window for the agent and 
 ## How RAG Works Here
 
 1. **Query**: when an agent clicks Suggest reply, the customer's latest messages are used as the query.
-2. **Search**: the retrieval service searches the workspace's articles using the configured `RETRIEVAL_MODE` (MongoDB `$text` keyword search, Gemini dense vector embeddings, or hybrid RRF).
+2. **Search**: the retrieval service searches the workspace's articles using the configured `RETRIEVAL_MODE` (MongoDB `$text` keyword search, local Sentence Transformers dense vector embeddings, or hybrid RRF).
 3. **Grounding**: the top articles are added to the Gemini prompt as the only source of truth.
 4. **Safety**: if the knowledge base doesn't contain the answer, the AI says so instead of inventing one.
 5. **Human in the loop**: suggestions are drafts; the agent edits and sends them.
@@ -224,6 +241,7 @@ Each browser tab keeps its own session. Use one normal window for the agent and 
 
 ## Known Limitations
 
+- The local Sentence Transformers embedding microservice requires Python 3.10+ and downloads ~90 MB model weights on initial cold start, consuming ~300 MB RAM in runtime memory.
 - The free Gemini tier has per-minute limits.
 - Messages are text only (up to 1000 characters); there are no file uploads or email forwarding.
 - Rate limiters are in memory, so they reset when the server restarts.

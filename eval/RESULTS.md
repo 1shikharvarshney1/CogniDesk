@@ -17,6 +17,7 @@
 | **npm Version** | 11.19.0 | Project package manager |
 | **Database** | MongoDB Server 8.3.7 | Local real service (`mongodb://127.0.0.1:27017/cognidesk`) |
 | **Backend Server** | Node.js Express 4.21.2 + Socket.io 4.8.1 | Running locally on port 5000 |
+| **Embedding Service** | Python 3.11 + FastAPI 0.115.11 + Uvicorn 0.34.0 | Sentence Transformers (`all-MiniLM-L6-v2`, 384 dims) on port 8000 |
 | **LLM Provider** | Google Gemini API via `@google/genai` | Primary: `gemini-3.5-flash`, Fallback: `gemini-3.1-flash-lite` |
 | **Resource Contention** | Shared single host | Server, MongoDB, and load generator share 8 GB RAM and 4 CPU cores |
 
@@ -123,54 +124,79 @@
 
 ---
 
-## 6. Step 5: Comparative Retrieval Evaluation (Text vs Vector vs Hybrid) & Gemini Suggestion
+## 6. Step 5: Comparative Retrieval Evaluation (Text vs Vector vs Hybrid) & AI Drafting
 
 - **Corpus Nature:** **100% Synthetic** customer support knowledge base (15 articles, 30 fixed test questions, committed in `eval/rag_ground_truth.json`).
-- **Embedding Model:** `gemini-embedding-001` (3,072 dimensions, L2 normalized).
+- **Active Embedding Provider:** `local` via FastAPI microservice (`/embedding-service`) serving `all-MiniLM-L6-v2` (384 dimensions, L2 normalized).
+- **Model Initialization Latency:**
+  - **Cold Initial Load:** ~20.21 seconds (including first-time model weight download from HuggingFace and PyTorch weight allocation).
+  - **Warm Microservice Startup:** 1.54 seconds (loading pre-cached weights into memory).
 - **Execution Methodology:**
-  - All 15 article embeddings pre-computed and persisted to MongoDB before timing begins (measuring pure search latency).
-  - Query-embedding latency is measured and reported separately from search latency.
+  - All 15 article embeddings pre-computed and persisted to MongoDB with `embeddingDimension: 384` before search timing begins (measuring pure search latency).
+  - Query-embedding latency is measured across all 30 queries against the local Python microservice and reported separately from search latency.
   - 1 warm-up run + 5 measured runs per question across all 30 questions ($n = 150$ retrieval evaluations per mode, $450$ total evaluations).
 - **Evaluation Script:** `node eval/test_rag.js`
 - **Raw Results:** `eval/results/rag.json`, `eval/results/rag.txt`
 
-### Comparative Summary Table ($n = 150$ evaluations per mode)
+### Comparative Summary Table ($n = 150$ evaluations per mode, Local Sentence Transformers)
 
 | Mode | Engine / Strategy | Top-1 Accuracy | Top-3 Accuracy | Search Latency p50 | Search Latency p95 | Query Embed p50 | Query Embed p95 | Imperfect Questions |
 | :--- | :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
-| **Text** | MongoDB 8.3.7 `$text` Index | **86.7%** (130/150) | **96.7%** (145/150) | **1.28 ms** | **1.78 ms** | *N/A* | *N/A* | 4 / 30 |
-| **Vector** | Local Cosine (`gemini-embedding-001`) | **100.0%** (150/150) | **100.0%** (150/150) | **40.72 ms** | **47.38 ms** | **460.34 ms** | **471.07 ms** | 0 / 30 |
-| **Hybrid** | Reciprocal Rank Fusion ($k=60$) | **96.7%** (145/150) | **100.0%** (150/150) | **40.92 ms** | **49.77 ms** | **460.34 ms** | **471.07 ms** | 1 / 30 |
+| **Text** | MongoDB 8.3.7 `$text` Index | **86.7%** (130/150) | **96.7%** (145/150) | **2.69 ms** | **4.58 ms** | *N/A* | *N/A* | 4 / 30 |
+| **Vector** | Local Cosine (`all-MiniLM-L6-v2`) | **96.7%** (145/150) | **96.7%** (145/150) | **32.78 ms** | **42.50 ms** | **26.51 ms** | **36.61 ms** | 1 / 30 |
+| **Hybrid** | Reciprocal Rank Fusion ($k=60$) | **96.7%** (145/150) | **100.0%** (150/150) | **17.25 ms** | **27.91 ms** | **26.51 ms** | **36.61 ms** | 1 / 30 |
+
+---
+
+### Historical Comparison: Local Sentence Transformers vs Google Gemini
+
+The table below contrasts the current local open-source embedding architecture (`all-MiniLM-L6-v2`) against the earlier cloud-based Google Gemini embedding baseline (`gemini-embedding-001`) under the identical 15-article corpus and 30-question test suite ($n = 150$ runs per mode):
+
+| Metric / Dimension | Google Gemini Baseline (`gemini-embedding-001`) | Local Sentence Transformers (`all-MiniLM-L6-v2`) | Impact / Trade-off |
+| :--- | :---: | :---: | :--- |
+| **Embedding Dimensions** | 3,072 dims (L2 normalized) | **384 dims** (L2 normalized) | **87.5% memory footprint reduction** per vector |
+| **Execution Tier** | Cloud API (`@google/genai`) | **Local Python FastAPI microservice** | Zero external network dependency; fully offline |
+| **Query Embedding p50** | 460.34 ms | **26.51 ms** | **~17.4x faster** query embedding generation |
+| **Query Embedding p95** | 471.07 ms | **36.61 ms** | **~12.9x faster** tail query latency |
+| **Search Latency p50 (Vector)** | 40.72 ms | **32.78 ms** | Faster cosine dot-product calculation in Node memory |
+| **Search Latency p50 (Hybrid)** | 40.92 ms | **17.25 ms** | ~58% reduction in search time |
+| **Text Mode Top-1 / Top-3** | 86.7% / 96.7% | 86.7% / 96.7% | Identical baseline ($text index) |
+| **Vector Mode Top-1 / Top-3** | **100.0%** / **100.0%** | **96.7%** / **96.7%** | Slight drop (missed `q30` numeric HTTP 429 code) |
+| **Hybrid Mode Top-1 / Top-3** | 96.7% / **100.0%** | 96.7% / **100.0%** | **Identical 100.0% Top-3 recall** |
+| **Cold Initialization** | Instant (Cloud API) | ~20.21 s (first model download) / 1.54 s warm | One-time weight cache on local disk (~90 MB) |
+| **API Cost & Quota Risk** | Subject to API quota & rate limits (429) | **Free, unlimited, private** | Eliminates embedding quota consumption |
+
+---
 
 ### Per-Category Accuracy & Latency Breakdown (Honest Per-Category Measurements)
 
 #### 1. Direct Queries ($n = 10$ questions, $50$ evaluations per mode)
 | Mode | Top-1 Accuracy | Top-3 Accuracy | Search Latency p50 | Search Latency p95 | Query Embed p50 | Query Embed p95 |
 | :--- | :---: | :---: | :---: | :---: | :---: | :---: |
-| **Text** | 100.0% (50/50) | 100.0% (50/50) | 1.31 ms | 1.64 ms | *N/A* | *N/A* |
-| **Vector** | 100.0% (50/50) | 100.0% (50/50) | 40.88 ms | 45.20 ms | 458.38 ms | 468.64 ms |
-| **Hybrid** | 100.0% (50/50) | 100.0% (50/50) | 40.89 ms | 46.27 ms | 458.38 ms | 468.64 ms |
+| **Text** | 100.0% (50/50) | 100.0% (50/50) | 2.69 ms | 4.77 ms | *N/A* | *N/A* |
+| **Vector** | 100.0% (50/50) | 100.0% (50/50) | 22.20 ms | 40.66 ms | 27.95 ms | 35.62 ms |
+| **Hybrid** | 100.0% (50/50) | 100.0% (50/50) | 17.61 ms | 29.52 ms | 27.95 ms | 35.62 ms |
 
 #### 2. Paraphrased Queries ($n = 8$ questions, $40$ evaluations per mode)
 | Mode | Top-1 Accuracy | Top-3 Accuracy | Search Latency p50 | Search Latency p95 | Query Embed p50 | Query Embed p95 |
 | :--- | :---: | :---: | :---: | :---: | :---: | :---: |
-| **Text** | 87.5% (35/40) | 100.0% (40/40) | 1.31 ms | 1.75 ms | *N/A* | *N/A* |
-| **Vector** | 100.0% (40/40) | 100.0% (40/40) | 40.52 ms | 44.90 ms | 465.21 ms | 475.32 ms |
-| **Hybrid** | 100.0% (40/40) | 100.0% (40/40) | 41.11 ms | 50.86 ms | 465.21 ms | 475.32 ms |
+| **Text** | 87.5% (35/40) | 100.0% (40/40) | 2.76 ms | 4.37 ms | *N/A* | *N/A* |
+| **Vector** | 100.0% (40/40) | 100.0% (40/40) | 32.93 ms | 42.70 ms | 25.58 ms | 30.68 ms |
+| **Hybrid** | 100.0% (40/40) | 100.0% (40/40) | 17.43 ms | 29.41 ms | 25.58 ms | 30.68 ms |
 
 #### 3. Synonyms ($n = 7$ questions, $35$ evaluations per mode)
 | Mode | Top-1 Accuracy | Top-3 Accuracy | Search Latency p50 | Search Latency p95 | Query Embed p50 | Query Embed p95 |
 | :--- | :---: | :---: | :---: | :---: | :---: | :---: |
-| **Text** | 85.7% (30/35) | 100.0% (35/35) | 1.25 ms | 1.81 ms | *N/A* | *N/A* |
-| **Vector** | 100.0% (35/35) | 100.0% (35/35) | 40.72 ms | 49.80 ms | 461.07 ms | 466.28 ms |
-| **Hybrid** | 85.7% (30/35) | 100.0% (35/35) | 40.91 ms | 47.54 ms | 461.07 ms | 466.28 ms |
+| **Text** | 85.7% (30/35) | 100.0% (35/35) | 2.73 ms | 4.02 ms | *N/A* | *N/A* |
+| **Vector** | 100.0% (35/35) | 100.0% (35/35) | 33.26 ms | 41.60 ms | 26.27 ms | 38.75 ms |
+| **Hybrid** | 100.0% (35/35) | 100.0% (35/35) | 17.00 ms | 26.42 ms | 26.27 ms | 38.75 ms |
 
 #### 4. Deliberately Hard ($n = 5$ questions, $25$ evaluations per mode)
 | Mode | Top-1 Accuracy | Top-3 Accuracy | Search Latency p50 | Search Latency p95 | Query Embed p50 | Query Embed p95 |
 | :--- | :---: | :---: | :---: | :---: | :---: | :---: |
-| **Text** | 60.0% (15/25) | 80.0% (20/25) | 1.27 ms | 1.91 ms | *N/A* | *N/A* |
-| **Vector** | 100.0% (25/25) | 100.0% (25/25) | 40.56 ms | 45.57 ms | 451.86 ms | 467.22 ms |
-| **Hybrid** | 100.0% (25/25) | 100.0% (25/25) | 40.88 ms | 50.93 ms | 451.86 ms | 467.22 ms |
+| **Text** | 60.0% (15/25) | 80.0% (20/25) | 2.55 ms | 5.24 ms | *N/A* | *N/A* |
+| **Vector** | 80.0% (20/25) | 80.0% (20/25) | 33.51 ms | 42.47 ms | 25.47 ms | 29.03 ms |
+| **Hybrid** | 80.0% (20/25) | 100.0% (25/25) | 16.85 ms | 21.30 ms | 25.47 ms | 29.03 ms |
 
 ---
 
@@ -194,24 +220,29 @@
    - **Result:** **Top-1: 0% | Top-3: 0%** (Missed completely; returned *Password Reset*, *2FA Setup*, *Workspace Ownership*)
    - **Root Cause:** Numeric "429" and "nightly syncs" lacked sufficient weight against title keywords, resulting in complete retrieval failure for text search.
 
-#### Mode: `vector` (0 imperfect questions)
-- **Zero failures.** Vector mode achieved **100.0% Top-1 accuracy** across all 30 questions. The dense 3,072-dimensional embeddings from `gemini-embedding-001` correctly bridged vocabulary mismatch, retrieving the exact target article at Rank 1 for all paraphrased, synonym, and deliberately hard queries (including `q30` at 429 status codes and `q28` at IP restrictions).
+#### Mode: `vector` (1 imperfect question)
+1. **`q30` (Deliberately Hard):** *"We are seeing 429 status codes on our automated reporting integration during nightly syncs."*
+   - **Expected:** `API Rate Limits, Quotas and Webhook Retries`
+   - **Result:** **Top-1: 0% | Top-3: 0%** (Rank 1: *Audit Logs, Activity Tracking and Security Events*, Rank 2: *Data Export, Retention Schedules and GDPR Compliance*, Rank 3: *Billing Cycles, Invoicing and Tax Details*)
+   - **Root Cause:** In the 384-dimensional latent space of `all-MiniLM-L6-v2`, the phrasing *"automated reporting integration during nightly syncs"* strongly projected towards data export schedules and audit logging rather than API rate limits. Unlike the 3,072-dimensional Gemini model which captured the numerical HTTP code "429" semantics, MiniLM-384 prioritized the "reporting sync" context. Noticeably, **Hybrid mode** rescued this query through text matching on "429" and "rate limits"!
 
 #### Mode: `hybrid` (1 imperfect question)
-1. **`q06` (Synonyms):** *"Can I get a reimbursement for a monthly subscription charged yesterday without any activity?"*
-   - **Expected:** `Refund Policy and Cancellation Windows`
-   - **Result:** Top-1: 0% | Top-3: 100% (Rank 1: *Billing Cycles*, Rank 2: *Refund Policy*)
-   - **Root Cause:** In the RRF ($k=60$) merge, Text ranked *Billing Cycles* at #1 ($1/61$) and *Refund Policy* at #2 ($1/62$), while Vector ranked *Refund Policy* at #1 ($1/61$) and an unrelated article at #2. Because *Billing Cycles* scored high enough on text search, the combined reciprocal rank score favored *Billing Cycles* for Top-1, though *Refund Policy* remained guaranteed in Top-3 (Rank 2).
+1. **`q28` (Deliberately Hard):** *"Can I prevent team members from connecting from home or public networks?"*
+   - **Expected:** `IP Whitelisting and Network Access Restrictions`
+   - **Result:** Top-1: 0% | **Top-3: 100%** (Rank 1: *User Roles, Permissions and Team Invitations*, Rank 2: *IP Whitelisting and Network Access Restrictions*, Rank 3: *Single Sign-On Configuration with SAML and Okta*)
+   - **Root Cause:** While Vector ranked *IP Whitelisting* at #1 ($1/61$), Text heavily weighted *User Roles* at #1 ($1/61$) due to the keywords "team members". In the RRF merge, *User Roles* narrowly edged out *IP Whitelisting* for Rank 1, though *IP Whitelisting* remained safely secured at Rank 2 (guaranteeing 100% Top-3 recall).
 
 ---
 
-### LLM Generation & Total Latency Profile
+### Pipeline Latency Profile
 
 | Pipeline Stage | Engine / Target | Sample Count ($n$) | Median Latency | p95 Latency |
 | :--- | :--- | :---: | :---: | :---: |
-| **Retrieval (Text)** | MongoDB `$text` Index | 150 | **1.28 ms** | **1.78 ms** |
-| **Retrieval (Vector Search)** | Local Cosine on 3,072 dims | 150 | **40.72 ms** | **47.38 ms** |
-| **Query Embedding** | Gemini API (`gemini-embedding-001`) | 30 | **460.34 ms** | **471.07 ms** |
+| **Retrieval (Text)** | MongoDB `$text` Index | 150 | **2.69 ms** | **4.58 ms** |
+| **Retrieval (Vector Search)** | Local Cosine on 384 dims | 150 | **32.78 ms** | **42.50 ms** |
+| **Retrieval (Hybrid RRF)** | Parallel Text + Vector + RRF | 150 | **17.25 ms** | **27.91 ms** |
+| **Query Embedding (Local MiniLM)** | FastAPI (`all-MiniLM-L6-v2`) | 30 | **26.51 ms** | **36.61 ms** |
+| **Query Embedding (Cloud Gemini)** | Gemini API (`gemini-embedding-001`) | 30 | **460.34 ms** | **471.07 ms** |
 | **LLM Generation** | Gemini API (`gemini-3.5-flash`) | 5 | **16,480.48 ms** | **17,899.14 ms** |
 | **Total End-to-End Pipeline** | Full RAG Pipeline (`suggestReply`) | 5 | **16,484.29 ms** | **17,904.08 ms** |
 
@@ -252,10 +283,10 @@ The following claims are strictly backed by measured data from the evaluation ru
    *"Demonstrated 100% tenant isolation across 20 automated penetration vectors ($n = 20$), verifying strict boundary enforcement across REST endpoints, WebSocket room subscriptions (`ws:<id>`, `conv:<id>`), agent authorization checks, and multi-tenant retrieval scopes across text, vector, and hybrid modes."*
 
 4. **Multi-Modal Knowledge Base Retrieval:**  
-   *"Benchmarked comparative knowledge retrieval across 3 modes ($n = 150$ queries per mode over 5 runs): pure text search achieved 86.7% Top-1 (1.28 ms median latency); vector search via 3,072-dim embeddings achieved 100.0% Top-1 accuracy (40.72 ms search p50); and hybrid RRF fusion achieved 96.7% Top-1 and 100.0% Top-3 accuracy."*
+   *"Benchmarked comparative knowledge retrieval across 3 modes ($n = 150$ queries per mode over 5 runs): pure text search achieved 86.7% Top-1 (2.69 ms median latency); local vector search via 384-dim open-source Sentence Transformers (`all-MiniLM-L6-v2`) achieved 96.7% Top-1 accuracy with 26.51 ms query embedding latency (~17x faster than cloud Gemini embeddings); and hybrid RRF fusion achieved 96.7% Top-1 and 100.0% Top-3 accuracy (17.25 ms search p50)."*
 
 5. **AI Suggestion Pipeline & Fault Resilience:**  
-   *"Integrated Google Gemini for context-grounded AI support drafting (median latency 4,171.84 ms, $n = 5$), validated with automated fallback to `gemini-3.1-flash-lite` during transient upstream 503 service outages."*
+   *"Integrated Google Gemini for context-grounded AI support drafting (median latency 16.48 s, $n = 5$, with 3.15 s fallback on `gemini-3.1-flash-lite`), validated with automated fallback recovery during transient upstream rate limits and service timeouts."*
 
 6. **Input Validation Integrity:**  
    *"Enforced 100% rejection of malformed REST and WebSocket inputs across 36 attack vectors ($n = 36$) using schema-level Zod validation and domain constraints."*
