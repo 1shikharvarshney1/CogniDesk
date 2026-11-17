@@ -28,6 +28,10 @@ const articleSchema = new mongoose.Schema(
     embeddingModel: {
       type: String,
       default: undefined
+    },
+    embeddingDimension: {
+      type: Number,
+      default: undefined
     }
   },
   { timestamps: true }

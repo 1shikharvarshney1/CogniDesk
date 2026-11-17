@@ -1,0 +1,3 @@
+@echo off
+echo Starting CogniDesk Local Embedding Microservice on port 8000...
+python "%~dp0main.py"

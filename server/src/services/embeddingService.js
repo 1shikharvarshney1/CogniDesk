@@ -53,22 +53,61 @@ export function cosineSimilarity(vecA, vecB) {
 }
 
 /**
- * Generates dense vector embedding using Gemini embedding model.
- * Respects taskType (RETRIEVAL_DOCUMENT vs RETRIEVAL_QUERY).
- *
- * @param {string} text
- * @param {object} options
- * @param {'RETRIEVAL_DOCUMENT'|'RETRIEVAL_QUERY'} [options.taskType='RETRIEVAL_DOCUMENT']
- * @param {string} [options.title='']
- * @returns {Promise<{ values: number[], model: string }|null>}
+ * Calls local Python embedding microservice over HTTP.
+ * Returns { values, model, dimension } or null on failure.
  */
-export async function generateEmbedding(text, { taskType = 'RETRIEVAL_DOCUMENT', title = '' } = {}) {
+async function generateLocalEmbedding(text) {
+  if (!text || !text.trim()) return null;
+
+  const url = `${env.EMBEDDING_SERVICE_URL}/embed`;
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 8000);
+
+  try {
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ texts: [text.trim()] }),
+      signal: controller.signal
+    });
+
+    clearTimeout(timeoutId);
+
+    if (!res.ok) {
+      console.warn(`[Embedding] Local embedding service returned HTTP ${res.status}`);
+      return null;
+    }
+
+    const data = await res.json();
+    const values = data.embeddings?.[0] || null;
+    if (!values || !Array.isArray(values) || values.length === 0) {
+      console.warn('[Embedding] Local embedding service returned empty vector');
+      return null;
+    }
+
+    // Vectors from sentence-transformers with normalize_embeddings=True are already L2 normalized
+    return {
+      values,
+      model: data.model || env.EMBEDDING_MODEL || 'all-MiniLM-L6-v2',
+      dimension: data.dimension || values.length
+    };
+  } catch (err) {
+    clearTimeout(timeoutId);
+    console.warn('[Embedding] Local embedding service request failed:', err.message);
+    return null;
+  }
+}
+
+/**
+ * Generates embedding using Gemini embedding model.
+ */
+async function generateGeminiEmbedding(text, { taskType = 'RETRIEVAL_DOCUMENT', title = '', model: customModel = '' } = {}) {
   const client = getAiClient();
   if (!client || !text || !text.trim()) {
     return null;
   }
 
-  const model = env.EMBEDDING_MODEL || 'gemini-embedding-001';
+  const model = customModel || (env.EMBEDDING_PROVIDER === 'gemini' ? env.EMBEDDING_MODEL : 'gemini-embedding-001');
 
   try {
     const config = { taskType };
@@ -88,11 +127,82 @@ export async function generateEmbedding(text, { taskType = 'RETRIEVAL_DOCUMENT',
       return null;
     }
 
-    // Return normalized vector for fast cosine similarity / dot product calculation
     const values = normalizeVector(rawValues);
-    return { values, model };
+    return { values, model, dimension: values.length };
   } catch (err) {
     console.warn(`[Embedding] Warning: Failed to generate embedding with ${model}:`, err.message);
     return null;
   }
+}
+
+/**
+ * Unified embedding generator routing to configured provider (local vs gemini).
+ *
+ * @param {string} text
+ * @param {object} [options]
+ * @param {'local'|'gemini'} [options.provider]
+ * @param {'RETRIEVAL_DOCUMENT'|'RETRIEVAL_QUERY'} [options.taskType='RETRIEVAL_DOCUMENT']
+ * @param {string} [options.title='']
+ * @returns {Promise<{ values: number[], model: string, dimension: number }|null>}
+ */
+export async function generateEmbedding(text, options = {}) {
+  const provider = (options.provider || env.EMBEDDING_PROVIDER || 'local').toLowerCase();
+
+  if (provider === 'gemini') {
+    return generateGeminiEmbedding(text, options);
+  }
+
+  return generateLocalEmbedding(text);
+}
+
+/**
+ * Batch embedding generator for multiple texts.
+ *
+ * @param {string[]} texts
+ * @param {object} [options]
+ * @returns {Promise<Array<{ values: number[], model: string, dimension: number }|null>>}
+ */
+export async function generateBatchEmbeddings(texts, options = {}) {
+  if (!Array.isArray(texts) || texts.length === 0) return [];
+  const provider = (options.provider || env.EMBEDDING_PROVIDER || 'local').toLowerCase();
+
+  if (provider === 'local') {
+    const url = `${env.EMBEDDING_SERVICE_URL}/embed`;
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 30000);
+
+    try {
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ texts: texts.map((t) => (t || '').trim()) }),
+        signal: controller.signal
+      });
+
+      clearTimeout(timeoutId);
+
+      if (!res.ok) {
+        console.warn(`[Embedding] Local batch embedding service returned HTTP ${res.status}`);
+        return texts.map(() => null);
+      }
+
+      const data = await res.json();
+      return (data.embeddings || []).map((vec) => ({
+        values: vec,
+        model: data.model || env.EMBEDDING_MODEL || 'all-MiniLM-L6-v2',
+        dimension: data.dimension || vec.length
+      }));
+    } catch (err) {
+      clearTimeout(timeoutId);
+      console.warn('[Embedding] Local batch embedding failed:', err.message);
+      return texts.map(() => null);
+    }
+  }
+
+  // Gemini sequential/parallel fallback
+  const results = [];
+  for (const t of texts) {
+    results.push(await generateGeminiEmbedding(t, options));
+  }
+  return results;
 }

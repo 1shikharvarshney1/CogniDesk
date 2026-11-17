@@ -34,6 +34,7 @@ export async function createArticle(req, res, next) {
     // Optional vector embedding generation
     let embedding;
     let embeddingModel;
+    let embeddingDimension;
     try {
       const embedRes = await generateEmbedding(`${title}\n\n${content}`, {
         taskType: 'RETRIEVAL_DOCUMENT',
@@ -42,6 +43,7 @@ export async function createArticle(req, res, next) {
       if (embedRes?.values) {
         embedding = embedRes.values;
         embeddingModel = embedRes.model;
+        embeddingDimension = embedRes.dimension || embedRes.values.length;
       }
     } catch (embedErr) {
       console.warn('[Article] Non-fatal: embedding generation failed on create:', embedErr.message);
@@ -51,7 +53,7 @@ export async function createArticle(req, res, next) {
       workspace: workspaceId,
       title,
       content,
-      ...(embedding ? { embedding, embeddingModel } : {})
+      ...(embedding ? { embedding, embeddingModel, embeddingDimension } : {})
     });
 
     return res.status(201).json(article);
@@ -90,6 +92,7 @@ export async function updateArticle(req, res, next) {
       if (embedRes?.values) {
         article.embedding = embedRes.values;
         article.embeddingModel = embedRes.model;
+        article.embeddingDimension = embedRes.dimension || embedRes.values.length;
       }
     } catch (embedErr) {
       console.warn('[Article] Non-fatal: embedding generation failed on update:', embedErr.message);

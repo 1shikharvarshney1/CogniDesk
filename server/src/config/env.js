@@ -18,6 +18,9 @@ if (!process.env.JWT_SECRET && process.env.NODE_ENV === 'production') {
   throw new Error('FATAL: JWT_SECRET environment variable is required in production.');
 }
 
+const rawEmbeddingProvider = (process.env.EMBEDDING_PROVIDER || 'local').toLowerCase();
+const embeddingProvider = ['local', 'gemini'].includes(rawEmbeddingProvider) ? rawEmbeddingProvider : 'local';
+
 export const env = {
   PORT: parseInt(process.env.PORT || '5000', 10),
   MONGODB_URI: process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/cognidesk',
@@ -30,7 +33,9 @@ export const env = {
   RETRIEVAL_MODE: ['text', 'vector', 'hybrid'].includes((process.env.RETRIEVAL_MODE || '').toLowerCase())
     ? process.env.RETRIEVAL_MODE.toLowerCase()
     : 'text',
-  EMBEDDING_MODEL: process.env.EMBEDDING_MODEL || 'gemini-embedding-001'
+  EMBEDDING_PROVIDER: embeddingProvider,
+  EMBEDDING_SERVICE_URL: (process.env.EMBEDDING_SERVICE_URL || 'http://127.0.0.1:8000').replace(/\/+$/, ''),
+  EMBEDDING_MODEL: process.env.EMBEDDING_MODEL || (embeddingProvider === 'local' ? 'all-MiniLM-L6-v2' : 'gemini-embedding-001')
 };
 
 // Safe key logging: only set/not set and length, never value
@@ -38,5 +43,5 @@ const keyStatus = env.GEMINI_API_KEY
   ? `set (length: ${env.GEMINI_API_KEY.length})`
   : 'not set';
 console.log(`[Config] GEMINI_API_KEY is ${keyStatus}`);
-console.log(`[Config] RETRIEVAL_MODE is ${env.RETRIEVAL_MODE} | EMBEDDING_MODEL is ${env.EMBEDDING_MODEL}`);
+console.log(`[Config] RETRIEVAL_MODE is ${env.RETRIEVAL_MODE} | PROVIDER is ${env.EMBEDDING_PROVIDER} | MODEL is ${env.EMBEDDING_MODEL}`);
 

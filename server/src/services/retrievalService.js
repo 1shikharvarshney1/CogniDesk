@@ -61,7 +61,7 @@ export async function findVectorArticles(workspaceId, text, limit = 3, options =
     const articles = await Article.find({
       workspace: workspaceId,
       embedding: { $exists: true, $ne: [] }
-    }).select('+embedding title content workspace embeddingModel');
+    }).select('+embedding title content workspace embeddingModel embeddingDimension');
 
     if (articles.length === 0) {
       console.warn('[Retrieval] No embedded articles found in workspace, falling back to text search');

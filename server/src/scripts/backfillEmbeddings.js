@@ -6,11 +6,28 @@ import { generateEmbedding } from '../services/embeddingService.js';
 
 async function backfill() {
   console.log('=== CogniDesk Article Embedding Backfill Script ===');
-  console.log(`Target Embedding Model: ${env.EMBEDDING_MODEL}`);
+  console.log(`Provider: ${env.EMBEDDING_PROVIDER} | Target Model: ${env.EMBEDDING_MODEL}`);
 
-  if (!env.GEMINI_API_KEY) {
-    console.error('ERROR: GEMINI_API_KEY is not set. Cannot generate embeddings in mock mode.');
-    process.exit(1);
+  if (env.EMBEDDING_PROVIDER === 'gemini') {
+    if (!env.GEMINI_API_KEY) {
+      console.error('ERROR: GEMINI_API_KEY is not set. Cannot generate Gemini embeddings in mock mode.');
+      process.exit(1);
+    }
+  } else {
+    // Verify local embedding microservice is running
+    try {
+      const res = await fetch(`${env.EMBEDDING_SERVICE_URL}/health`);
+      if (!res.ok) {
+        throw new Error(`HTTP ${res.status}`);
+      }
+      const health = await res.json();
+      console.log(`Local embedding service healthy (model: ${health.model}, dim: ${health.dimension})`);
+    } catch (err) {
+      console.error(`ERROR: Local embedding microservice unreachable at ${env.EMBEDDING_SERVICE_URL}: ${err.message}`);
+      console.error('Please start the embedding service before running backfill:');
+      console.error('  python embedding-service/main.py');
+      process.exit(1);
+    }
   }
 
   await connectDB();
@@ -50,9 +67,10 @@ async function backfill() {
     if (embedRes?.values) {
       art.embedding = embedRes.values;
       art.embeddingModel = embedRes.model;
+      art.embeddingDimension = embedRes.dimension || embedRes.values.length;
       await art.save();
       successCount++;
-      console.log(`  -> Saved embedding (dim: ${embedRes.values.length}, model: ${embedRes.model})`);
+      console.log(`  -> Saved embedding (dim: ${art.embeddingDimension}, model: ${embedRes.model})`);
     } else {
       failCount++;
       console.warn(`  -> Failed to generate embedding for "${art.title}"`);
@@ -60,7 +78,8 @@ async function backfill() {
 
     // Rate-limit safety pacing between requests
     if (i < articles.length - 1) {
-      await new Promise((resolve) => setTimeout(resolve, 400));
+      const paceMs = env.EMBEDDING_PROVIDER === 'local' ? 50 : 400;
+      await new Promise((resolve) => setTimeout(resolve, paceMs));
     }
   }
 
